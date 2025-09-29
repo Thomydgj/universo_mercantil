@@ -117,3 +117,17 @@
     color: #0a77c9;
     text-align: center;
 }
+
+/* Estilo para el slider */
+#slider-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 10px;
+}
+
+#slider-container img {
+    width: 300px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 10px;
+}

@@ -1,29 +1,34 @@
-// Arreglo de categorías
+// Datos de las categorías
 const categorias = [
-    { nombre: "Alimentos preparados", imagen: "assets/images/imagen_mock.jpg" },
-    { nombre: "Café y chocolate", imagen: "assets/images/imagen_mock.jpg" },
-    { nombre: "Cárnicos", imagen: "assets/images/carnicos.jpg" },
-    { nombre: "Mascotas", imagen: "assets/images/imagen_mock.jpg" },
-    { nombre: "Panadería y repostería", imagen: "assets/images/imagen_mock.jpg" },
-    { nombre: "Snacks y cereales", imagen: "assets/images/imagen_mock.jpg" },
+    { id: "alimentos", nombre: "Alimentos Preparados", imagen: "../assets/images/categorias/alimentos.png" },
+    { id: "cafe-chocolate", nombre: "Café y Chocolate", imagen: "../assets/images/categorias/cafe-chocolate.png" },
+    { id: "carnicos", nombre: "Cárnicos", imagen: "../assets/images/categorias/carnicos.png" },
+    { id: "mascotas", nombre: "Mascotas", imagen: "../assets/images/categorias/mascotas.png" },
+    { id: "panaderia", nombre: "Panadería y Repostería", imagen: "../assets/images/categorias/panaderia.png" },
+    { id: "snacks", nombre: "Snacks y Cereales", imagen: "../assets/images/categorias/snacks.png" }
 ];
 
-// Función para generar dinámicamente las tarjetas de categorías
+// Contenedor de categorías
+const categoriasContainer = document.getElementById("categorias-container");
+
+// Función para generar las tarjetas de categorías
 function generarCategorias() {
-    const container = document.getElementById("categorias-container");
-
-    categorias.forEach(categoria => {
-        const card = document.createElement("div");
-        card.classList.add("categoria-card");
-
-        card.innerHTML = `
+    categorias.forEach((categoria) => {
+        const tarjeta = document.createElement("div");
+        tarjeta.classList.add("producto-card");
+        tarjeta.innerHTML = `
             <img src="${categoria.imagen}" alt="${categoria.nombre}">
-            <h3>${categoria.nombre}</h3>
+            <div class="producto-info">
+                <h3>${categoria.nombre}</h3>
+            </div>
         `;
-
-        container.appendChild(card);
+        tarjeta.addEventListener("click", () => {
+            // Redirigir a productos.html con el ID de la categoría como parámetro
+            window.location.href = `productos.html?categoria=${categoria.id}`;
+        });
+        categoriasContainer.appendChild(tarjeta);
     });
 }
 
-// Ejecutar la función al cargar el script
+// Generar las categorías al cargar la página
 document.addEventListener("DOMContentLoaded", generarCategorias);

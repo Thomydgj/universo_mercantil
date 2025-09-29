@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del Producto</title>
+    <link rel="stylesheet" href="styles/catalogo.css">
+</head>
+<body>
+    <main>
+        <section id="detalle-producto">
+            <div id="slider-container"></div>
+            <div id="producto-info">
+                <h2 id="producto-nombre"></h2>
+                <p id="producto-descripcion"></p>
+                <div id="producto-precio"></div>
+                <div id="producto-controles">
+                    <label for="cantidad">Cantidad:</label>
+                    <input type="number" id="cantidad" value="1" min="1">
+                    <button id="agregar-carrito">Agregar al carrito</button>
+                    <button id="comprar-ahora">Comprar ahora</button>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script src="scripts/productos.js"></script>
+    <script src="scripts/producto.js"></script>
+</body>
+</html>
