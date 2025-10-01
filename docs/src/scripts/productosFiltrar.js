@@ -1,37 +1,3 @@
-// Obtener el parámetro de la URL (declarar solo una vez)
-const urlParams = new URLSearchParams(window.location.search);
-const productoId = urlParams.get("id"); // El ID se obtiene como string
-console.log("ID del producto:", productoId);
-
-// Buscar el producto en los datos
-let productoSeleccionado = null;
-for (const categoria in productos) {
-    console.log("Buscando en categoría:", categoria);
-    const producto = productos[categoria].find((p) => p.id === productoId);
-    if (producto) {
-        productoSeleccionado = producto;
-        break;
-    }
-}
-
-console.log("Producto seleccionado:", productoSeleccionado);
-
-// Mostrar los detalles del producto
-if (productoSeleccionado) {
-    document.getElementById("producto-nombre").textContent = productoSeleccionado.nombre;
-    document.getElementById("producto-descripcion").textContent = productoSeleccionado.descripcionLarga;
-    document.getElementById("producto-precio").textContent = productoSeleccionado.precio;
-
-    // Generar el slider de imágenes
-    const sliderContainer = document.getElementById("slider-container");
-    productoSeleccionado.imagenes.forEach((imagen) => {
-        const img = document.createElement("img");
-        img.src = imagen;
-        sliderContainer.appendChild(img);
-    });
-} else {
-    document.body.innerHTML = "<h1>Producto no encontrado</h1>";
-}
 
 // Obtener el parámetro de la URL
 const urlParams = new URLSearchParams(window.location.search);

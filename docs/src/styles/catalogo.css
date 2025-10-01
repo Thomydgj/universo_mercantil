@@ -118,11 +118,19 @@
     text-align: center;
 }
 
-/* Estilo para el slider */
+/* Estilos para la página del producto */
+#detalle-producto {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+}
+
 #slider-container {
     display: flex;
     overflow-x: auto;
     gap: 10px;
+    margin-bottom: 20px;
 }
 
 #slider-container img {
@@ -130,4 +138,50 @@
     height: 300px;
     object-fit: cover;
     border-radius: 10px;
+}
+
+#producto-info {
+    text-align: center;
+}
+
+#producto-nombre {
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+
+#producto-descripcion {
+    font-size: 1.2em;
+    margin-bottom: 20px;
+}
+
+#producto-precio {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+#producto-controles {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#producto-controles input {
+    width: 60px;
+    padding: 5px;
+    text-align: center;
+}
+
+#producto-controles button {
+    background-color: #0a77c9;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#producto-controles button:hover {
+    background-color: #084d8b;
 }

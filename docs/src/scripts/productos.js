@@ -110,6 +110,7 @@ const productos = [
         precio: "$$$$$$",
         imagenes: [
             "../assets/images/productos/Bolsa_Flex_Up_Con_Zipper/Zipper1.png",
+            
             "../assets/images/productos/Bolsa_Flex_Up_Con_Zipper/Zipper2.png",
             "../assets/images/productos/Bolsa_Flex_Up_Con_Zipper/Zipper3.png",
             "../assets/images/productos/Bolsa_Flex_Up_Con_Zipper/Zipper4.png"
