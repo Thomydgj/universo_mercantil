@@ -7,9 +7,9 @@ const productos = [
         descripcionLarga: "El empaque Multibarrera es ideal para una amplia gama de productos, ofreciendo resistencia y versatilidad.",
         precio: "$$$$$$",
         imagenes: [
-            "../assets/images/productos/Multibarrera/Multibarrera1.png",
-            "../assets/images/productos/Multibarrera/Multibarrera2.png",
-            "../assets/images/productos/Multibarrera/Multibarrera3.png"
+            "assets/images/productos/Multibarrera/Multibarrera1.png",
+            "assets/images/productos/Multibarrera/Multibarrera2.png",
+            "assets/images/productos/Multibarrera/Multibarrera3.png"
         ],
         categorias: ["carnicos"]
     },
