@@ -1,24 +1,44 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Categorías - Universo Mercantil</title>
-    <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles/catalogo.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categorías</title>
+  <link rel="stylesheet" href="./styles/styles.css">
 </head>
 <body>
-    <!-- Catálogo de Categorías -->
-    <main>
-        <section id="catalogo-categorias">
-            <h2>Categorías de Uso</h2>
-            <div class="catalogo-grid" id="categorias-container">
-                <!-- Las tarjetas de categorías se generarán dinámicamente -->
-            </div>
-        </section>
-    </main>
+  <header id="header"></header>
 
-    <!-- Script para generar dinámicamente las categorías -->
-    <script src="./scripts/categorias.js"></script>
+  <main id="categorias">
+    <h2>Categorías</h2>
+
+    <!-- Contenedor vacío donde se insertarán las tarjetas -->
+    <section id="container-categorias" class="container-categorias">
+
+        <!-- Plantilla oculta -->
+        <template id="template-categoria">
+          <a class="link-categoria" href="#">
+            <article class="tarjeta-categoria">
+              <figure>
+                <div class="imagen-categoria">
+                  <img src="" alt="">
+                </div>
+                <div class="titulo-categoria">
+                  <h3 class="nombre-categoria"></h3>
+                </div>
+              </figure>
+            </article>
+          </a>
+        </template>
+
+    </section>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <!-- Scripts -->
+  <script src="./scripts/loadComponents.js"></script>
+  <script src="./scripts/categorias.js"></script>
+  <script src="./scripts/loadCategorias.js"></script>
 </body>
 </html>

@@ -4,18 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Productos - Universo Mercantil</title>
-    <link rel="stylesheet" href="./styles/catalogo.css">
+    <link rel="stylesheet" href="./styles/styles.css">
 </head>
 <body>
-    <main>
-        <section id="catalogo-productos">
-            <h2 id="categoria-titulo">Productos</h2>
-            <div class="catalogo-grid" id="productos-container">
-                <!-- Las tarjetas de productos se generarán dinámicamente -->
-            </div>
+
+    <header id="header"></header>
+    <main id="productos">
+
+        <h2>Productos</h2>
+        <section id="container-productos" class="container-productos">
+            <!-- Plantilla oculta -->
+            <template id="template-producto">
+                <a class="link-producto" href="#">
+                    <article class="tarjeta-producto">
+                        <figure>
+                            <div class="imagen-producto">
+                                <img src="" alt="">
+                            </div>
+                        
+                            <div class="detalles-producto">
+                                <h3 class="nombre-producto"></h3>
+                                <p class="descripcion-corta-producto"></p>
+                                <!-- <p class="precio-producto"></p> -->
+                            </div>
+                        </figure>
+                    </article>
+                </a>
+            </template>
+
         </section>
+
     </main>
+    <footer id="footer"></footer>
+    <script src="./scripts/loadComponents.js"></script>
     <script src="./scripts/productos.js"></script>
-    <script src="./scripts/productosFiltrar.js"></script>
+    <script src="./scripts/loadProductos.js"></script>
+    
 </body>
 </html>

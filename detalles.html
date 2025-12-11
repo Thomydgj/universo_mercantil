@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>pagina de proucto</title>
+    <link rel="stylesheet" href="/styles/styles.css">
+</head>
+<body>
+    <header id="header"></header>
+
+    <main id="detalles-producto">
+
+        <section id="container-detalles-producto" class="container-detalles-producto">
+            
+            <template id="template-detalle">
+
+                <div class="carrusel-producto"> 
+
+                    <button class="prev">‹</button>
+                    <div class="carrusel-fila">
+                        <!-- Las imágenes del carrusel se cargarán aquí dinámicamente -->
+                    </div>
+                    <button class="next">›</button>
+
+                </div>
+
+                <div class="detalles-texto">
+                    <h2 class="nombre-producto"></h2>
+                    <p class="descripcion-larga-producto"></p>
+                    <p class="precio-producto"></p>
+
+                    <div class="acciones-producto">
+
+                        <label for="cantidad">Cantidad:</label>
+                        <input type="number" id="cantidad" class="cantidad-producto" min="1" value="1">
+                        <button class="btn-agregar">Agregar al Carrito</button>
+                        <button class="btn-comprar">Comprar Ahora</button>
+
+                    </div>
+
+                </div>
+
+            </template>
+
+        </section>
+        
+    </main>    
+
+
+    <footer id="footer"></footer>
+
+
+
+    <script src="/scripts/loadComponents.js"></script>
+    <script src="/scripts/productos.js"></script>
+    <script src="/scripts/loadDetalles.js"></script>
+
+</body>
+</html>
