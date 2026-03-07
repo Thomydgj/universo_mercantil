@@ -261,3 +261,30 @@ const productos = [
     }
 ];
 
+const bannersPorCategoria = {
+  "cafe-chocolate": {
+    desktop: "assets/images/banners/escritorio/cafe_pc.jpg",
+    mobile: "assets/images/banners/movil/cafe_movil.jpg"
+  },
+  "carnicos": {
+    desktop: "assets/images/banners/escritorio/carnicos_pc.jpg",
+    mobile: "assets/images/banners/movil/carnicos_movil.jpg"
+  },
+  "alimentos-preparados": {
+    desktop: "assets/images/banners/escritorio/alimentos_pc.jpg",
+    mobile: "assets/images/banners/movil/alimentos_movil.jpg"
+  },
+  "panaderia": {
+    desktop: "assets/images/banners/escritorio/panaderia_pc.jpg",
+    mobile: "assets/images/banners/movil/panaderia_movil.jpg"
+  },
+  "snacks": {
+    desktop: "assets/images/banners/escritorio/snacks_pc.jpg",
+    mobile: "assets/images/banners/movil/snacks_movil.jpg"
+  },
+  "mascotas": {
+    desktop: "assets/images/banners/escritorio/mascotas_pc.jpg",
+    mobile: "assets/images/banners/movil/mascotas_movil.jpg"
+  }
+};
+

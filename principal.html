@@ -1,26 +1,97 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Universo Mercantil - Líderes en empaques industriales en Colombia. Ofrecemos empaques flexibles, termoformados y fundas para cárnicos con más de 25 años de experiencia.">
+    <meta name="keywords" content="empaques industriales, empaques flexibles, termoformados, fundas cárnicos, packaging Colombia">
+    <meta name="author" content="Universo Mercantil">
     <link rel="stylesheet" href="./styles/styles.css">
     
-    <title>Principal</title>
+    <title>Universo Mercantil - Empaques Industriales de Calidad</title>
 </head>
 <body>
 
     <header id="header"></header>
     <!-- Hero Section -->
-    <section id="inicio" class="hero"> 
-        <div class="hero-content">
-            <h1>Empaques y Maquinaria para la Industria Alimentaria</h1>
-            <p>Soluciones eficaces para la conservación y presentación de alimentos</p>
-            <a href="#productos" class="button">Ver Productos</a>
+<section id="inicio" class="hero">
+  <picture>
+    <source media="(max-width: 768px)" srcset="assets/images/banners/movil/aniversario_movil.jpg">
+    <img src="assets/images/banners/escritorio/aniversario_pc.jpg" alt="Hero Banner">
+  </picture>
+</section>
+
+    <section class="presentacion-principal" aria-label="Presentación principal">
+        <div class="presentacion-content">
+            <div class="presentacion-copy">
+                <p class="presentacion-kicker">Soluciones de empaque industrial en Colombia</p>
+                <h1 class="presentacion-titulo">Empaques que protegen tu producto y potencian tu marca</h1>
+                
+                <div class="tarjeta-productos presentacion-productos" aria-label="Lineas principales de producto">
+                    <article class="producto">
+                        <a href="/categorias.html?tipo=flexibles" class="flexibles">
+                            <div class="presentacion-card-copy">
+                                <h3>Empaques Flexibles</h3>
+                                <p>Alta barrera y formatos versatiles para multiples industrias.</p>
+                                <span class="presentacion-card-cta">Ver linea</span>
+                            </div>
+                        </a>
+                    </article>
+
+                    <article class="producto">
+                        <a href="/categorias.html?tipo=termoformados" class="termoformados">
+                            <div class="presentacion-card-copy">
+                                <h3>Empaques Termoformados</h3>
+                                <p>Proteccion estructural para una presentacion limpia y segura.</p>
+                                <span class="presentacion-card-cta">Ver linea</span>
+                            </div>
+                        </a>
+                    </article>
+
+                    <article class="producto">
+                        <a href="/productos.html?categoria=carnicos" class="carnicos">
+                            <div class="presentacion-card-copy">
+                                <h3>Fundas para Carnicos</h3>
+                                <p>Soluciones resistentes para procesos exigentes del sector carnico.</p>
+                                <span class="presentacion-card-cta">Ver linea</span>
+                            </div>
+                        </a>
+                    </article>
+                </div>
+                <div class="presentacion-actions">
+                    <a href="/categorias.html" class="button">Todos los productos</a>
+                    <a href="#cotizacion" class="button button-outline">Solicitar cotización</a>
+                </div>
+            </div>
         </div>
     </section>
-    
-    <section id="productos">
-    <h2>Empaques Profesionales</h2>
+
+        <!-- Estadísticas -->
+    <section id="estadisticas" class="estadisticas">
+        <div class="estadisticas-container">
+            <div class="estadistica-item">
+                <div class="numero" data-target="10">0</div>
+                <p>Años de Experiencia</p>
+            </div>
+            <div class="estadistica-item">
+                <div class="numero" data-target="500">0</div>
+                <p>Clientes Satisfechos</p>
+            </div>
+            <div class="estadistica-item">
+                <div class="numero" data-target="18">0</div>
+                <p>Tipos de Empaques</p>
+            </div>
+            <div class="estadistica-item">
+                <div class="numero" data-target="100">0</div>
+                <p>Calidad Garantizada</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- <section id="productos">
+    <h2>Nuestros Productos</h2>
+    <div class="decorative-line"></div>
+    <p class="productos-descripcion">Soluciones de empaque industrial para cada necesidad</p>
         <div class="tarjeta-productos">
 
             <article class="producto">
@@ -42,10 +113,164 @@
             </article>
 
         </div>
+    </section> -->
 
+
+
+    <!-- Proceso -->
+    <section id="proceso" class="proceso-trabajo">
+        <div class="proceso-container">
+            <h2>Como Trabajamos</h2>
+            <div class="decorative-line"></div>
+            <p class="proceso-descripcion">Un proceso claro para desarrollar empaques funcionales, seguros y listos para tu operacion.</p>
+            <div class="proceso-grid">
+                <article class="proceso-item">
+                    <span class="proceso-numero">1</span>
+                    <h3>Diagnostico</h3>
+                    <p>Entendemos tu producto, canal y requerimientos tecnicos para definir la mejor solucion.</p>
+                </article>
+                <article class="proceso-item">
+                    <span class="proceso-numero">2</span>
+                    <h3>Diseno Tecnico</h3>
+                    <p>Proponemos materiales, estructura y acabados orientados a rendimiento y presentacion.</p>
+                </article>
+
+                <article class="proceso-item">
+                    <span class="proceso-numero">3</span>
+                    <h3>Entrega y Soporte</h3>
+                    <p>Coordinamos entrega oportuna y acompanamos ajustes para mejorar continuamente.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+    
+
+    <section class="trust-strip" aria-label="Confianza y respaldo">
+        <div class="trust-strip-container">
+                <h2>Empresas que confían en nosotros</h2>
+            <div class="trust-logos-banner">
+                <img src="assets/images/banners/escritorio/marcas_pc.jpg" alt="Marcas que confian en Universo Mercantil" loading="lazy">
+            </div>
+        </div>
+    </section>
+    <!-- Por Qué Elegirnos -->
+    <section id="por-que-elegirnos" class="por-que-elegirnos">
+        <div class="por-que-container">
+            <h2>¿Por Qué Elegirnos?</h2>
+            <div class="decorative-line"></div>
+            <div class="ventajas-grid">
+                <article class="ventaja-item">
+                    <div class="ventaja-icono">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                    <h3>Entrega Rápida</h3>
+                    <p>Cumplimos con los tiempos de entrega acordados, garantizando la disponibilidad de tu producto cuando lo necesitas</p>
+                </article>
+
+                <article class="ventaja-item">
+                    <div class="ventaja-icono">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h3>Variedad de Productos</h3>
+                    <p>Amplio catálogo de soluciones de empaque para diferentes industrias y aplicaciones</p>
+                </article>
+
+                <article class="ventaja-item">
+                    <div class="ventaja-icono">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                    </div>
+                    <h3>Certificaciones</h3>
+                    <p>Productos certificados que cumplen con normativas nacionales e internacionales de calidad</p>
+                </article>
+
+                <article class="ventaja-item">
+                    <div class="ventaja-icono">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <h3>Asesoría Personalizada</h3>
+                    <p>Equipo experto que te acompaña en la selección del empaque ideal para tu negocio</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cotizacion Rapida -->
+    <section id="cotizacion" class="cotizacion-rapida">
+        <div class="cotizacion-wrap">
+            <div class="cotizacion-texto">
+                <h2>Cotizacion Rapida</h2>
+                <div class="decorative-line"></div>
+                <p>Comparte tus datos y un asesor comercial te contactara para recomendarte la mejor opcion de empaque.</p>
+                <ul class="cotizacion-lista">
+                    <li>Respuesta inicial en horario laboral</li>
+                    <li>Asesoria segun tipo de producto</li>
+                    <li>Ajustes por volumen y requerimiento</li>
+                </ul>
+            </div>
+            <form class="cotizacion-form" action="#" method="post">
+                <label for="nombre">Nombre</label>
+                <input id="nombre" name="nombre" type="text" placeholder="Tu nombre" required>
+
+                <label for="empresa">Empresa</label>
+                <input id="empresa" name="empresa" type="text" placeholder="Nombre de tu empresa" required>
+
+                <label for="producto-interes">Producto de interes</label>
+                <select id="producto-interes" name="producto-interes" required>
+                    <option value="" selected disabled>Selecciona una opcion</option>
+                    <option value="flexibles">Empaques flexibles</option>
+                    <option value="termoformados">Empaques termoformados</option>
+                    <option value="carnicos">Fundas para carnicos</option>
+                    <option value="otro">Otro</option>
+                </select>
+
+                <label for="telefono">Telefono o WhatsApp</label>
+                <input id="telefono" name="telefono" type="tel" placeholder="Ej: 3001234567" required>
+
+                <button type="submit" class="cotizacion-btn">Solicitar asesoria</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Llamado a la Acción -->
+    <section id="cta" class="cta-section">
+        <div class="cta-container">
+            <h2>¿Listo para encontrar el empaque perfecto?</h2>
+            <p>Contáctanos hoy y descubre cómo nuestras soluciones pueden impulsar tu negocio</p>
+            <div class="cta-buttons">
+                <a href="#footer" class="btn-primary">Contáctanos</a>
+                <a href="/productos.html" class="btn-secondary">Ver Catálogo</a>
+            </div>
+        </div>
+    </section>
 
     <footer id="footer"></footer>
     
+    <!-- Botón Volver Arriba -->
+    <button id="backToTop" class="back-to-top" aria-label="Volver arriba">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="18 15 12 9 6 15"/>
+        </svg>
+    </button>
+    
     <script src="./scripts/loadComponents.js"></script>
+    <script src="./scripts/animations.js"></script>
 </body>
 </html>

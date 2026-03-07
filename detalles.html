@@ -1,19 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>pagina de proucto</title>
+    <meta name="description" content="Detalle de producto - Universo Mercantil. Conoce especificaciones y soluciones de empaque para tu negocio.">
+    <title>Detalle de Producto - Universo Mercantil</title>
     <link rel="stylesheet" href="/styles/styles.css">
 </head>
 <body>
     <header id="header"></header>
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
 
-    <main id="detalles-producto">
+    <main id="detalles-producto" class="detalle-page">
+
+        <section class="detalle-intro">
+            <p id="detalle-breadcrumb" class="catalogo-breadcrumb"><a href="/principal.html">Inicio</a> / <a href="/productos.html">Productos</a> / Detalle</p>
+            <h1 id="detalle-titulo">Detalle del Producto</h1>
+            <div class="decorative-line"></div>
+            <p id="detalle-subtitulo" class="catalogo-descripcion">Informacion tecnica y comercial para ayudarte a elegir la mejor solucion de empaque.</p>
+        </section>
 
         <section id="container-detalles-producto" class="container-detalles-producto">
             
             <template id="template-detalle">
+
+                <article class="detalle-producto-card">
 
                 <div class="carrusel-producto"> 
 
@@ -27,8 +38,18 @@
 
                 <div class="detalles-texto">
                     <h2 class="nombre-producto"></h2>
+                    <div class="detalle-meta">
+                        <span class="detalle-categoria"></span>
+                        <span class="detalle-referencia"></span>
+                    </div>
                     <p class="descripcion-larga-producto"></p>
                     <p class="precio-producto"></p>
+
+                    <ul class="detalle-beneficios">
+                        <li>Fabricacion con estandares de calidad consistentes</li>
+                        <li>Opciones para distintos canales y formatos de venta</li>
+                        <li>Asesoria tecnica para seleccionar la mejor alternativa</li>
+                    </ul>
 
                     <div class="acciones-producto">
 
@@ -36,13 +57,24 @@
                         <input type="number" id="cantidad" class="cantidad-producto" min="1" value="1">
                         <button class="btn-agregar">Agregar al Carrito</button>
                         <button class="btn-comprar">Comprar Ahora</button>
+                        <a class="btn-whatsapp" href="#" target="_blank" rel="noopener noreferrer">Consultar por WhatsApp</a>
 
                     </div>
 
                 </div>
 
+                </article>
+
             </template>
 
+        </section>
+
+        <section class="detalle-asesoria">
+            <div class="detalle-asesoria-content">
+                <h2>Necesitas una recomendacion personalizada?</h2>
+                <p>Cuéntanos tu tipo de producto y te ayudamos a elegir el empaque ideal segun conservacion, transporte y presentacion final.</p>
+                <a href="/principal.html#cotizacion" class="btn-catalogo-asesoria">Solicitar asesoria</a>
+            </div>
         </section>
         
     </main>    
@@ -53,6 +85,7 @@
 
 
     <script src="/scripts/loadComponents.js"></script>
+    <script src="/scripts/uiFeedback.js"></script>
     <script src="/scripts/productos.js"></script>
     <script src="/scripts/loadDetalles.js"></script>
 

@@ -1,10 +1,39 @@
 // confirmarEnvio.js
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector(".checkout-form");
-  const btnConfirmar = form.querySelector("button[type='submit']");
-  const btnComprar = document.querySelector(".btn-pagar"); // creado en loadCarrito.js
+  const carritoContenedor = document.getElementById("container-tarjetas-carrito");
+  const notify = (message, type) => {
+    if (typeof window.showToast === "function") {
+      window.showToast(message, type);
+      return;
+    }
+    alert(message);
+  };
 
   let datosEnvioConfirmados = null;
+
+  function sincronizarBotonComprar() {
+    const btnComprar = document.querySelector(".btn-pagar");
+    if (!btnComprar) return;
+
+    if (datosEnvioConfirmados) {
+      btnComprar.removeAttribute("disabled");
+      btnComprar.removeAttribute("title");
+    } else {
+      btnComprar.setAttribute("disabled", "true");
+      btnComprar.setAttribute("title", "Debes completar los datos de envio");
+    }
+  }
+
+  // Escucha cambios en el carrito (cuando se re-renderiza)
+  if (carritoContenedor) {
+    const observer = new MutationObserver(() => {
+      sincronizarBotonComprar();
+    });
+    observer.observe(carritoContenedor, { childList: true, subtree: true });
+  }
+
+  sincronizarBotonComprar();
 
   form.addEventListener("submit", e => {
     e.preventDefault();
@@ -12,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Capturar valores
     const nombre = document.getElementById("nombre").value.trim();
     const apellidos = document.getElementById("apellidos").value.trim();
+    const numeroDocumento = document.getElementById("numero-documento").value.trim();
     const telefono = document.getElementById("telefono").value.trim();
     const email = document.getElementById("email").value.trim();
     const departamento = document.getElementById("departamento").value;
@@ -21,9 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Validación de teléfono: exactamente 10 dígitos
     const telefonoValido = /^\d{10}$/.test(telefono);
+    const documentoValido = /^\d{5,20}$/.test(numeroDocumento);
 
-    if (!nombre || !apellidos || !telefonoValido || !email || !departamento || !ciudad || !direccion) {
-      alert("Por favor completa todos los campos requeridos y asegúrate que el teléfono tenga 10 dígitos.");
+    if (!nombre || !apellidos || !documentoValido || !telefonoValido || !email || !departamento || !ciudad || !direccion) {
+      notify("Completa todos los campos y verifica documento (5-20 digitos) y telefono (10 digitos).", "warning");
       return;
     }
 
@@ -31,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
     datosEnvioConfirmados = {
       nombre,
       apellidos,
+      numeroDocumento,
       telefono,
       email,
       departamento,
@@ -46,22 +78,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Habilitar botón COMPRAR y quitar tooltip
-    if (btnComprar) {
-      btnComprar.removeAttribute("disabled");
-      btnComprar.removeAttribute("title");
-    }
+    sincronizarBotonComprar();
 
-    alert("Datos de envío confirmados. Ahora puedes proceder con la compra.");
+    notify("Datos de envio confirmados. Ahora puedes proceder con la compra.", "success");
     console.log("Datos de envío confirmados:", datosEnvioConfirmados);
 
     // Exponer para checkout.js
     window.datosEnvioConfirmados = datosEnvioConfirmados;
   });
-
-  // Inicialmente deshabilitar el botón COMPRAR y poner tooltip
-  if (btnComprar) {
-    btnComprar.setAttribute("disabled", "true");
-    btnComprar.setAttribute("title", "Debes completar los datos de envío");
-  }
 });

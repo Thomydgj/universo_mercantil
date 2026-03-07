@@ -9,9 +9,23 @@
 <body>
 
     <header id="header"></header>
-    <main id="productos">
+    <main id="productos" class="catalogo-page">
+        <div id="banner-productos" class="banner"></div>
 
-        <h2>Productos</h2>
+        <section class="catalogo-intro">
+            <p class="catalogo-breadcrumb"><a href="/principal.html">Inicio</a> / Catalogo</p>
+            <h1>Catalogo de Productos</h1>
+            <div class="decorative-line"></div>
+            <!-- <p id="catalogo-descripcion" class="catalogo-descripcion">Explora soluciones de empaque industrial por categoria y encuentra la opcion ideal para tu operacion.</p> -->
+
+            <div class="catalogo-meta">
+                <span id="categoria-actual" class="meta-tag">Todas las categorias</span>
+                <span id="contador-productos" class="meta-count">0 productos</span>
+            </div>
+
+            <nav id="filtro-categorias" class="filtro-categorias" aria-label="Filtrar por categoria"></nav>
+        </section>
+
         <section id="container-productos" class="container-productos">
             <!-- Plantilla oculta -->
             <template id="template-producto">
@@ -32,6 +46,14 @@
                 </a>
             </template>
 
+        </section>
+
+        <section class="catalogo-asesoria">
+            <div class="catalogo-asesoria-content">
+                <h2>¿Necesitas Asesoria para Elegir el Empaque Correcto?</h2>
+                <p>Te ayudamos a seleccionar el material y formato segun tu producto, canal y objetivo de conservacion.</p>
+                <a href="/principal.html#cotizacion" class="btn-catalogo-asesoria">Solicitar asesoria</a>
+            </div>
         </section>
 
     </main>

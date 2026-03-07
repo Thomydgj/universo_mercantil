@@ -9,8 +9,25 @@
 <body>
   <header id="header"></header>
 
-  <main id="categorias">
-    <h2>Categorías</h2>
+  <main id="categorias" class="categorias-page">
+
+
+     <div id="banner-categoria" class="banner"></div>
+
+    <section class="categorias-intro">
+      <p class="catalogo-breadcrumb"><a href="/principal.html">Inicio</a> / Categorias</p>
+      <h1>Categorias de Empaque</h1>
+      <div class="decorative-line"></div>
+      
+
+      <div class="catalogo-meta">
+        <span id="tipo-actual" class="meta-tag">Todos los tipos</span>
+        <span id="contador-categorias" class="meta-count">0 categorias</span>
+      </div>
+
+      <nav id="filtro-tipos" class="filtro-categorias" aria-label="Filtrar por tipo de empaque"></nav>
+    </section>
+
 
     <!-- Contenedor vacío donde se insertarán las tarjetas -->
     <section id="container-categorias" class="container-categorias">
@@ -31,6 +48,14 @@
           </a>
         </template>
 
+    </section>
+
+    <section class="categorias-asesoria">
+      <div class="categorias-asesoria-content">
+        <h2>No sabes que categoria elegir?</h2>
+        <p>Nuestro equipo te orienta para seleccionar el tipo de empaque ideal segun tu producto, canal y necesidad de conservacion.</p>
+        <a href="/principal.html#cotizacion" class="btn-catalogo-asesoria">Hablar con un asesor</a>
+      </div>
     </section>
   </main>
 

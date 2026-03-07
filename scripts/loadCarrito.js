@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
       totalDiv.classList.add("precio-pedido");
       totalDiv.innerHTML = `
         <h3 class="total-pedido">Total del pedido: $${calcularTotal().toLocaleString()}</h3>
-        <button class="btn-pagar">COMPRAR</button>
+        <button type="button" class="btn-pagar">COMPRAR</button>
       `;
       contenedor.appendChild(totalDiv);
     } else {

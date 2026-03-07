@@ -1,23 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Carrito de compras - Universo Mercantil. Confirma tus datos de entrega y completa tu pedido de forma segura.">
     <link rel="stylesheet" href="./styles/styles.css">
-    <title>Carrito</title>
+  <title>Carrito de Compras - Universo Mercantil</title>
 </head>
 <body>
 
     <header id="header"></header>
- 
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
 
+  <main class="carrito-page">
+  <section class="carrito-intro">
+    <p class="catalogo-breadcrumb"><a href="/principal.html">Inicio</a> / Carrito</p>
+    <h1>Checkout</h1>
+    <div class="decorative-line"></div>
+    <p class="catalogo-descripcion">Completa tus datos de entrega, revisa tu pedido y finaliza el pago en un entorno seguro.</p>
+  </section>
 
-    <section class="carrito">
+  <section class="carrito">
    
 
       <form class="checkout-form">
 
-        <h1>Checkout</h1> 
+        <h2>Datos para tu pedido</h2>
+        <p class="checkout-ayuda">Primero confirma tu informacion de contacto y direccion para habilitar el pago.</p>
 
         <h3 class="datos-personales">Datos Personales</h3>
 
@@ -31,10 +40,10 @@
           <input type="text" id="apellidos" placeholder="Apellidos" required>
         </div>
       
-        <!-- <div class="form-group full-width">
-          <label for="cedula">Cédula:</label>
-          <input type="text" id="cedula" placeholder="Cédula" required>
-        </div> -->
+        <div class="form-group full-width">
+          <label for="numero-documento">No. de identificación:</label>
+          <input type="text" id="numero-documento" placeholder="Cédula o NIT" required>
+        </div>
       
         <div class="form-group">
           <label for="telefono">Teléfono:</label>
@@ -71,7 +80,7 @@
         <button type="submit" class="btn-confirmar">Confirmar Datos</button>
       </form>
 
-      <div  id="container-tarjetas-carrito" class="carrito-productos">
+      <div id="container-tarjetas-carrito" class="carrito-productos">
         <template id="template-carrito">
           <article class="tarjeta-carrito">
             <figure>
@@ -103,10 +112,21 @@
 
     </section>
 
+    <section class="carrito-asesoria">
+      <div class="carrito-asesoria-content">
+        <h2>¿Necesitas ajustar tu pedido?</h2>
+        <p>Si necesitas una recomendacion de empaque antes de pagar, podemos orientarte en minutos.</p>
+        <a href="/principal.html#cotizacion" class="btn-catalogo-asesoria">Hablar con un asesor</a>
+      </div>
+    </section>
+
+    </main>
+
     
 
     <footer id="footer"></footer>
     <script src="./scripts/loadComponents.js"></script>
+    <script src="./scripts/uiFeedback.js"></script>
     <script src="./scripts/loadColombia.js"></script>
     <script src="./scripts/loadCarrito.js"></script>
     <script src="./scripts/confirmarEnvio.js"></script>
