@@ -1,3 +1,10 @@
+    const RUNTIME_CONFIG = window.UNIVERSO_CONFIG || {};
+    const CONTACT_CONFIG = {
+    whatsapp: RUNTIME_CONFIG.whatsapp || "573001234567",
+    phoneDisplay: RUNTIME_CONFIG.phoneDisplay || "+57 300 123 4567",
+    phoneDial: RUNTIME_CONFIG.phoneDial || "+573001234567"
+  };
+
     const HEADER_TEMPLATE = `
   <div class="header-shell">
     <a class="logo" href="/principal.html" aria-label="Ir a inicio">
@@ -139,10 +146,48 @@
     });
   }
 
+  function applyGlobalContactConfig() {
+    const whatsappButtons = document.querySelectorAll(".quick-contact-btn.whatsapp");
+    const callButtons = document.querySelectorAll(".quick-contact-btn.call");
+    const footerPhoneLinks = document.querySelectorAll(".footer-contacto a[href^='tel:']");
+
+    whatsappButtons.forEach(link => {
+      link.setAttribute("href", `https://wa.me/${CONTACT_CONFIG.whatsapp}`);
+    });
+
+    callButtons.forEach(link => {
+      link.setAttribute("href", `tel:${CONTACT_CONFIG.phoneDial}`);
+    });
+
+    footerPhoneLinks.forEach(link => {
+      link.setAttribute("href", `tel:${CONTACT_CONFIG.phoneDial}`);
+      link.textContent = CONTACT_CONFIG.phoneDisplay;
+    });
+  }
+
+  function initFloatingButtons() {
+    const quickContactButtons = document.querySelector(".quick-contact");
+    if (!quickContactButtons) return;
+
+    const toggleVisibility = () => {
+      if (window.pageYOffset > 600) {
+        quickContactButtons.classList.add("visible");
+      } else {
+        quickContactButtons.classList.remove("visible");
+      }
+    };
+
+    window.addEventListener("scroll", toggleVisibility, { passive: true });
+    window.addEventListener("load", toggleVisibility);
+    toggleVisibility();
+  }
+
   Promise.all([
     loadComponent("header", "header.html"),
     loadComponent("footer", "footer.html")
   ]).then(() => {
     initHeaderInteractions();
     markActiveNavLink();
+    applyGlobalContactConfig();
+    initFloatingButtons();
   });

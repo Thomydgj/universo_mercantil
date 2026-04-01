@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import smtplib
 import time
@@ -12,19 +13,51 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
 
-app = Flask(__name__)
+load_dotenv()
 
-# Configuración global de CORS
-CORS(app, resources={r"/*": {"origins": "*"}})
+try:
+    from .db_store import (
+        DB_ENABLED,
+        db_find_order_by_payment_link_id,
+        db_get_order,
+        db_record_payment_event,
+        db_upsert_order,
+        explain_storage_mode,
+        init_database,
+    )
+except ImportError:
+    from db_store import (
+        DB_ENABLED,
+        db_find_order_by_payment_link_id,
+        db_get_order,
+        db_record_payment_event,
+        db_upsert_order,
+        explain_storage_mode,
+        init_database,
+    )
+
+app = Flask(__name__)
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
 # Variables de entorno
-load_dotenv()
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000"
+    ).split(",")
+    if origin.strip()
+]
+
+# Configuración de CORS restringida por entorno
+CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
 
 WOMPI_PUBLIC_KEY = os.getenv("WOMPI_PUBLIC_KEY")
 WOMPI_PRIVATE_KEY = os.getenv("WOMPI_PRIVATE_KEY")
 WOMPI_INTEGRITY_SECRET = os.getenv("WOMPI_INTEGRITY_SECRET")
 WOMPI_URL = os.getenv("WOMPI_URL", "https://sandbox.wompi.co/v1")
-BASE_URL = os.getenv("NGROK_BASE_URL")
+BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http://localhost:8000"
 
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -35,6 +68,10 @@ FACTURACION_EMAIL_TO = os.getenv("FACTURACION_EMAIL_TO")
 FACTURACION_EMAIL_CC = os.getenv("FACTURACION_EMAIL_CC", "")
 
 STORE_PATH = Path(__file__).resolve().parent / "orders_store.json"
+
+if DB_ENABLED:
+    init_database()
+logger.info("Modo de persistencia activo: %s", explain_storage_mode())
 
 
 def now_iso() -> str:
@@ -50,7 +87,7 @@ def load_order_store() -> dict:
             if isinstance(data, dict) and isinstance(data.get("orders"), dict):
                 return data
     except Exception as exc:
-        print(f"WARN: No se pudo leer {STORE_PATH.name}: {exc}")
+        logger.warning("No se pudo leer %s: %s", STORE_PATH.name, exc)
     return {"orders": {}}
 
 
@@ -60,6 +97,9 @@ def save_order_store(store: dict) -> None:
 
 
 def upsert_order(reference: str, patch: dict) -> dict:
+    if DB_ENABLED:
+        return db_upsert_order(reference, patch)
+
     store = load_order_store()
     orders = store.setdefault("orders", {})
     current = orders.get(reference, {"reference": reference, "created_at": now_iso()})
@@ -71,10 +111,16 @@ def upsert_order(reference: str, patch: dict) -> dict:
 
 
 def get_order(reference: str) -> dict | None:
+    if DB_ENABLED:
+        return db_get_order(reference)
+
     return load_order_store().get("orders", {}).get(reference)
 
 
 def find_order_by_payment_link_id(payment_link_id: str) -> tuple[str, dict] | None:
+    if DB_ENABLED:
+        return db_find_order_by_payment_link_id(payment_link_id)
+
     if not payment_link_id:
         return None
 
@@ -94,11 +140,11 @@ def consultar_transaccion_wompi(transaction_id: str) -> dict:
         resp = requests.get(f"{WOMPI_URL}/transactions/{transaction_id}", headers=headers, timeout=20)
         payload = resp.json()
     except Exception as exc:
-        print(f"ERROR consultando transaccion {transaction_id}: {exc}")
+        logger.error("Error consultando transaccion %s: %s", transaction_id, exc)
         return {}
 
     if resp.status_code >= 400:
-        print(f"ERROR Wompi transaccion {transaction_id}: {payload}")
+        logger.error("Error Wompi transaccion %s: %s", transaction_id, payload)
         return {}
 
     return payload.get("data", {})
@@ -112,6 +158,8 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
     tx_status = (tx.get("status") or "").upper()
     reference = tx.get("reference")
     payment_link_id = tx.get("payment_link_id")
+
+    db_record_payment_event(reference or "sin_referencia", source, transaction_id, tx_status or "UNKNOWN", tx)
 
     if not reference:
         return {"status": "ignored", "reason": "reference_not_found"}, 200
@@ -153,7 +201,7 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
     })
 
     if not sent:
-        print(f"ERROR correo facturacion ({matched_reference}): {detail}")
+        logger.error("Error correo facturacion (%s): %s", matched_reference, detail)
         return {"status": "error", "message": "email_not_sent", "detail": detail}, 500
 
     return {"status": "ok", "message": "email_sent"}, 200
@@ -161,12 +209,16 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
 
 def build_email_content(order: dict, transaction: dict) -> tuple[str, str]:
     reference = order.get("reference", "sin_referencia")
-    amount_in_cents = int(order.get("amount_in_cents") or transaction.get("amount_in_cents") or 0)
+    amount_in_cents = int(order.get("amount_in_cents") or (transaction or {}).get("amount_in_cents") or 0)
     amount = amount_in_cents / 100
-    currency = order.get("currency", transaction.get("currency") or "COP")
+    currency = order.get("currency", (transaction or {}).get("currency") or "COP")
+    payment_method = (order.get("payment_method") or (transaction or {}).get("payment_method_type") or "N/A").upper()
+    delivery_type = (order.get("delivery_type") or "shipping").lower()
+    shipping_cost = int(order.get("shipping_cost") or 0)
+    shipping_zone = order.get("shipping_zone") or "N/A"
 
-    tx_customer = transaction.get("customer_data") or {}
-    tx_billing = transaction.get("billing_data") or {}
+    tx_customer = (transaction or {}).get("customer_data") or {}
+    tx_billing = (transaction or {}).get("billing_data") or {}
     tx_full_name = (tx_customer.get("full_name") or "").strip().split()
     tx_first_name = tx_full_name[0] if tx_full_name else ""
     tx_last_name = " ".join(tx_full_name[1:]) if len(tx_full_name) > 1 else ""
@@ -176,14 +228,13 @@ def build_email_content(order: dict, transaction: dict) -> tuple[str, str]:
         "apellidos": tx_last_name,
         "numero_documento": tx_billing.get("legal_id") or "",
         "telefono": tx_customer.get("phone_number") or "",
-        "email": transaction.get("customer_email") or "",
+        "email": (transaction or {}).get("customer_email") or "",
     }
-    shipping = order.get("shipping_address") or (transaction.get("shipping_address") or {})
+    shipping = order.get("shipping_address") or ((transaction or {}).get("shipping_address") or {})
     items = order.get("items") or []
 
-    tx_id = transaction.get("id", "N/A")
-    tx_status = transaction.get("status", "N/A")
-    tx_method = (transaction.get("payment_method_type") or "N/A").upper()
+    tx_id = (transaction or {}).get("id", "N/A")
+    tx_status = (transaction or {}).get("status") or (order.get("status") or "N/A")
 
     lines = [
         f"Nueva compra verificada por Wompi ({tx_status}).",
@@ -191,7 +242,10 @@ def build_email_content(order: dict, transaction: dict) -> tuple[str, str]:
         "=== Resumen de pago ===",
         f"Referencia: {reference}",
         f"Transaccion Wompi: {tx_id}",
-        f"Metodo: {tx_method}",
+        f"Metodo: {payment_method}",
+        f"Tipo de entrega: {'Recoger en tienda' if delivery_type == 'pickup' else 'Enviar a domicilio'}",
+        f"Zona de envio: {shipping_zone}",
+        f"Costo de envio: {shipping_cost:,.0f} {currency}".replace(",", "."),
         f"Total: {amount:,.0f} {currency}".replace(",", "."),
         "",
         "=== Datos del comprador ===",
@@ -200,14 +254,27 @@ def build_email_content(order: dict, transaction: dict) -> tuple[str, str]:
         f"Telefono: {buyer.get('telefono', 'N/A')}",
         f"Email: {buyer.get('email', order.get('customer_email', 'N/A'))}",
         "",
-        "=== Direccion de envio ===",
-        f"Departamento: {shipping.get('departamento', 'N/A')}",
-        f"Ciudad: {shipping.get('ciudad', 'N/A')}",
-        f"Direccion: {shipping.get('direccion', 'N/A')}",
-        f"Detalle: {shipping.get('detalle_direccion', 'N/A') or 'N/A'}",
-        "",
-        "=== Productos comprados ===",
     ]
+
+    if delivery_type == "pickup":
+        lines.extend([
+            "=== Entrega en tienda ===",
+            order.get("pickup_message") or "Tu pedido estara disponible para entrega en tienda en 5 horas habiles.",
+            ""
+        ])
+    else:
+        lines.extend([
+            "=== Direccion de envio ===",
+            f"Departamento: {shipping.get('departamento', 'N/A')}",
+            f"Ciudad: {shipping.get('ciudad', 'N/A')}",
+            f"Direccion: {shipping.get('direccion', 'N/A')}",
+            f"Detalle: {shipping.get('detalle_direccion', 'N/A') or 'N/A'}",
+            ""
+        ])
+
+    lines.extend([
+        "=== Productos comprados ===",
+    ])
 
     if not items:
         lines.append("(Sin detalle de productos en payload)")
@@ -259,11 +326,10 @@ def generar_firma(reference, amount_in_cents, currency, integrity_secret):
 
 
 @app.after_request
-def add_cors_headers(response):
-    """Añadir headers CORS en todas las respuestas"""
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
 
 
@@ -285,6 +351,12 @@ def checkout():
     buyer = data.get("buyer") or {}
     shipping_address = data.get("shipping_address") or {}
     items = data.get("items") or []
+    subtotal = int(data.get("subtotal") or amount_in_cents // 100)
+    shipping_cost = int(data.get("shipping_cost") or 0)
+    shipping_zone = data.get("shipping_zone") or "Zona Nacional"
+    delivery_type = (data.get("delivery_type") or "shipping").lower()
+    payment_method = (data.get("payment_method") or "wompi").lower()
+    pickup_message = data.get("pickup_message") or ""
 
     signature = generar_firma(reference, amount_in_cents, currency, WOMPI_INTEGRITY_SECRET)
 
@@ -325,6 +397,12 @@ def checkout():
             "customer_email": customer_email,
             "name": name,
             "description": description,
+            "subtotal": subtotal,
+            "shipping_cost": shipping_cost,
+            "shipping_zone": shipping_zone,
+            "delivery_type": delivery_type,
+            "payment_method": payment_method,
+            "pickup_message": pickup_message,
             "buyer": buyer,
             "shipping_address": shipping_address,
             "items": items,
@@ -338,6 +416,54 @@ def checkout():
         return jsonify({"checkout_url": link}), 201
 
     return jsonify(wompi_payload), response.status_code
+
+
+@app.route("/order/create-for-payment", methods=["POST", "OPTIONS"])
+def create_order_for_direct_payment():
+    if request.method == "OPTIONS":
+        return ("", 200)
+
+    data = request.get_json(force=True)
+    reference = data.get("reference", f"orden_{int(time.time())}")
+    amount_in_cents = int(data.get("amount_in_cents") or 0)
+    currency = data.get("currency", "COP")
+    customer_email = data.get("customer_email", "cliente@ejemplo.com")
+    items = data.get("items") or []
+    buyer = data.get("buyer") or {}
+    shipping_address = data.get("shipping_address") or {}
+    delivery_type = (data.get("delivery_type") or "shipping").lower()
+    payment_method = "direct"
+    shipping_cost = int(data.get("shipping_cost") or 0)
+    shipping_zone = data.get("shipping_zone") or "Zona Nacional"
+
+    if delivery_type == "pickup":
+        shipping_address = {}
+        shipping_cost = 0
+
+    upsert_order(reference, {
+        "amount_in_cents": amount_in_cents,
+        "currency": currency,
+        "customer_email": customer_email,
+        "name": data.get("name", "Compra en carrito"),
+        "description": data.get("description", f"Compra de {len(items)} productos"),
+        "subtotal": int(data.get("subtotal") or 0),
+        "shipping_cost": shipping_cost,
+        "shipping_zone": shipping_zone,
+        "delivery_type": delivery_type,
+        "payment_method": payment_method,
+        "pickup_message": data.get("pickup_message") or "",
+        "buyer": buyer,
+        "shipping_address": shipping_address,
+        "items": items,
+        "status": "pending_payment",
+        "email_notified": False,
+    })
+
+    return jsonify({
+        "ok": True,
+        "reference": reference,
+        "status": "pending_payment"
+    }), 201
 
 
 @app.route("/checkout/resultado", methods=["GET", "OPTIONS"])
@@ -364,7 +490,7 @@ def webhook():
         return ("", 200)
 
     evento = request.get_json(silent=True) or {}
-    print("WEBHOOK_EVENT:", evento)
+    logger.info("Webhook recibido")
 
     tx_from_event = (evento.get("data") or {}).get("transaction") or {}
     tx_id = tx_from_event.get("id") or (evento.get("data") or {}).get("id")
@@ -373,4 +499,6 @@ def webhook():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    port = int(os.getenv("PORT", "8000"))
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

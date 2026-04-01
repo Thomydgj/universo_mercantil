@@ -1,6 +1,8 @@
 // confirmarEnvio.js
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector(".checkout-form");
+  if (!form) return;
+
   const carritoContenedor = document.getElementById("container-tarjetas-carrito");
   const notify = (message, type) => {
     if (typeof window.showToast === "function") {
@@ -11,6 +13,40 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   let datosEnvioConfirmados = null;
+  const deliveryRadios = document.querySelectorAll("input[name='delivery-type']");
+  const deliveryFields = document.querySelectorAll(".delivery-field input, .delivery-field select");
+  const pickupInfo = document.getElementById("pickup-info");
+
+  function obtenerDeliveryType() {
+    return document.querySelector("input[name='delivery-type']:checked")?.value || "shipping";
+  }
+
+  function obtenerPaymentMethod() {
+    return document.querySelector("input[name='payment-method']:checked")?.value || "wompi";
+  }
+
+  function actualizarModoEntrega() {
+    const deliveryType = obtenerDeliveryType();
+    const esPickup = deliveryType === "pickup";
+
+    deliveryFields.forEach(field => {
+      if (esPickup) {
+        field.removeAttribute("required");
+        field.setAttribute("disabled", "true");
+      } else {
+        field.setAttribute("required", "true");
+        field.removeAttribute("disabled");
+      }
+    });
+
+    if (pickupInfo) {
+      pickupInfo.hidden = !esPickup;
+    }
+
+    if (window.checkoutShipping) {
+      window.checkoutShipping.setDeliveryType(deliveryType);
+    }
+  }
 
   function sincronizarBotonComprar() {
     const btnComprar = document.querySelector(".btn-pagar");
@@ -34,6 +70,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   sincronizarBotonComprar();
+  actualizarModoEntrega();
+
+  deliveryRadios.forEach(radio => {
+    radio.addEventListener("change", () => {
+      if (!datosEnvioConfirmados) {
+        actualizarModoEntrega();
+      }
+    });
+  });
 
   form.addEventListener("submit", e => {
     e.preventDefault();
@@ -44,6 +89,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const numeroDocumento = document.getElementById("numero-documento").value.trim();
     const telefono = document.getElementById("telefono").value.trim();
     const email = document.getElementById("email").value.trim();
+    const deliveryType = obtenerDeliveryType();
+    const paymentMethod = obtenerPaymentMethod();
     const departamento = document.getElementById("departamento").value;
     const ciudad = document.getElementById("ciudad").value;
     const direccion = document.getElementById("direccion").value.trim();
@@ -53,10 +100,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const telefonoValido = /^\d{10}$/.test(telefono);
     const documentoValido = /^\d{5,20}$/.test(numeroDocumento);
 
-    if (!nombre || !apellidos || !documentoValido || !telefonoValido || !email || !departamento || !ciudad || !direccion) {
+    const envioValido = deliveryType === "pickup" || (departamento && ciudad && direccion);
+
+    if (!nombre || !apellidos || !documentoValido || !telefonoValido || !email || !envioValido) {
       notify("Completa todos los campos y verifica documento (5-20 digitos) y telefono (10 digitos).", "warning");
       return;
     }
+
+    const state = window.checkoutShipping?.getState?.() || window.checkoutState || {};
+    const shippingCost = deliveryType === "pickup" ? 0 : Number(state.shippingCost || 0);
+    const shippingZone = deliveryType === "pickup" ? "Recoger en tienda" : (state.shippingZone || "Zona Nacional");
 
     // Guardar datos confirmados
     datosEnvioConfirmados = {
@@ -65,10 +118,15 @@ document.addEventListener("DOMContentLoaded", () => {
       numeroDocumento,
       telefono,
       email,
-      departamento,
-      ciudad,
-      direccion,
-      detalleDireccion
+      deliveryType,
+      paymentMethod,
+      departamento: deliveryType === "pickup" ? "" : departamento,
+      ciudad: deliveryType === "pickup" ? "" : ciudad,
+      direccion: deliveryType === "pickup" ? "" : direccion,
+      detalleDireccion: deliveryType === "pickup" ? "" : detalleDireccion,
+      shippingCost,
+      shippingZone,
+      pickupMessage: "Tu pedido estara disponible para entrega en tienda en 5 horas habiles, direccion: Cl. 21 # 22-10 local 102, Comuna 4 Occidental, Bucaramanga, Santander."
     };
 
     // Bloquear inputs
@@ -80,8 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     sincronizarBotonComprar();
 
-    notify("Datos de envio confirmados. Ahora puedes proceder con la compra.", "success");
-    console.log("Datos de envío confirmados:", datosEnvioConfirmados);
+    notify("Datos confirmados. Ya puedes finalizar tu pedido.", "success");
 
     // Exponer para checkout.js
     window.datosEnvioConfirmados = datosEnvioConfirmados;

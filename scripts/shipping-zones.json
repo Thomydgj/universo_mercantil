@@ -1,0 +1,44 @@
+[
+  {
+    "id": "zona-centro",
+    "nombre": "Zona Centro",
+    "precio": 12000,
+    "departamentos": ["Bogota D.C.", "Cundinamarca", "Boyaca", "Tolima"]
+  },
+  {
+    "id": "zona-nororiente",
+    "nombre": "Zona Nororiente",
+    "precio": 15000,
+    "departamentos": ["Santander", "Norte de Santander", "Arauca", "Cesar"]
+  },
+  {
+    "id": "zona-occidente",
+    "nombre": "Zona Occidente",
+    "precio": 17000,
+    "departamentos": ["Antioquia", "Caldas", "Risaralda", "Quindio", "Choco"]
+  },
+  {
+    "id": "zona-caribe",
+    "nombre": "Zona Caribe",
+    "precio": 19000,
+    "departamentos": ["Atlantico", "Bolivar", "Magdalena", "Cordoba", "La Guajira", "Sucre"]
+  },
+  {
+    "id": "zona-sur",
+    "nombre": "Zona Sur",
+    "precio": 22000,
+    "departamentos": ["Cauca", "Narino", "Putumayo", "Huila", "Caqueta"]
+  },
+  {
+    "id": "zona-oriente",
+    "nombre": "Zona Oriente",
+    "precio": 26000,
+    "departamentos": ["Amazonas", "Guainia", "Guaviare", "Meta", "Vaupes", "Vichada", "Casanare"]
+  },
+  {
+    "id": "zona-default",
+    "nombre": "Zona Nacional",
+    "precio": 20000,
+    "departamentos": []
+  }
+]

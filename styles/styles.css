@@ -849,7 +849,7 @@ footer ul li a:hover {
     color: #ffffff;
 }
 
-@media (max-width: 1240px) {
+@media (max-width: 1024px) {
     .header-shell {
         padding-left: 6%;
         padding-right: 6%;
@@ -912,6 +912,43 @@ footer ul li a:hover {
     .footer-bottom {
         padding-left: 6%;
         padding-right: 6%;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-shell {
+        min-height: 74px;
+        padding-left: 5%;
+        padding-right: 5%;
+    }
+
+    .logo-subtext {
+        display: none;
+    }
+
+    .menu-toggle {
+        display: inline-flex;
+    }
+
+    .nav-bar {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        display: none;
+        background: #034d99;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 10px 5%;
+    }
+
+    .nav-bar.open {
+        display: block;
+    }
+
+    .nav-bar ul {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
 
@@ -1257,6 +1294,13 @@ footer ul li a:hover {
     .presentacion-actions .button {
         flex: 1 1 calc(50% - 7px);
         text-align: center;
+    }
+}
+
+@media (max-width: 1024px) {
+    .container-productos,
+    .container-categorias {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -2565,6 +2609,17 @@ h2::after {
     }
 }
 
+@media (max-width: 1024px) {
+    .detalle-producto-card {
+        grid-template-columns: 1fr;
+    }
+
+    .carrusel-producto,
+    .carrusel-fila img {
+        height: clamp(300px, 48vh, 500px);
+    }
+}
+
 @media (max-width: 640px) {
     .detalle-page {
         padding-top: 18px;
@@ -2699,6 +2754,46 @@ h2::after {
     border-bottom: 1px solid #d8e5f2;
     padding-bottom: 7px;
     margin-top: 8px;
+}
+
+.grupo-opciones-entrega,
+.grupo-opciones-pago {
+    background: #f6f9fd;
+    border: 1px solid #d9e5f2;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.campo-titulo {
+    font-family: 'Spline Sans', sans-serif;
+    color: #034d99;
+    font-size: 0.96rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-family: 'Geist', sans-serif;
+    color: #304152;
+}
+
+.radio-option input[type="radio"] {
+    margin-top: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.pickup-info,
+.payment-info {
+    margin: 8px 0 0;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.86rem;
+    color: #556473;
+    line-height: 1.5;
 }
 
 .checkout-form label {
@@ -2910,6 +3005,13 @@ h2::after {
     margin-top: auto;
 }
 
+.total-line,
+.total-zone {
+    margin: 0 0 7px;
+    color: #4f6172;
+    font-size: 0.92rem;
+}
+
 .total-pedido {
     font-family: 'Spline Sans', sans-serif;
     font-size: 1.2rem;
@@ -2982,6 +3084,94 @@ h2::after {
     margin-bottom: 16px;
 }
 
+@media (min-width: 1100px) {
+    .carrito {
+        grid-template-columns: minmax(620px, 1.22fr) minmax(360px, 0.78fr);
+        gap: 30px;
+        align-items: start;
+    }
+
+    .checkout-form {
+        padding: 30px 32px;
+        gap: 16px 18px;
+        border-radius: 18px;
+    }
+
+    .checkout-form h2 {
+        font-size: 2rem;
+    }
+
+    .checkout-form .btn-confirmar {
+        margin-top: 2px;
+    }
+
+    .carrito-productos {
+        align-self: start;
+        position: sticky;
+        top: 106px;
+        max-height: calc(100vh - 128px);
+        padding: 16px;
+        gap: 12px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    }
+
+    .tarjeta-carrito figure {
+        grid-template-columns: 112px 1fr;
+        min-height: 124px;
+        border: 1px solid #deebf7;
+        box-shadow: 0 8px 18px rgba(18, 56, 90, 0.1);
+    }
+
+    .imagen-carrito {
+        background: linear-gradient(180deg, #f2f8ff 0%, #e8f1fb 100%);
+    }
+
+    .imagen-carrito img {
+        object-fit: contain;
+        padding: 6px;
+    }
+
+    .detalles-carrito {
+        padding: 12px 14px 10px;
+        gap: 7px;
+    }
+
+    .nombre-carrito {
+        font-size: 1rem;
+        line-height: 1.25;
+    }
+
+    .en-linea {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .precio-pedido {
+        padding: 16px 8px 8px;
+        border-top: 1px solid #cfe0ef;
+        box-shadow: 0 -6px 18px rgba(18, 56, 90, 0.08);
+        backdrop-filter: saturate(110%) blur(2px);
+    }
+
+    .total-line,
+    .total-zone {
+        font-size: 0.9rem;
+    }
+
+    .total-pedido {
+        font-size: 1.28rem;
+        margin-bottom: 12px;
+    }
+
+    .btn-pagar {
+        width: 100%;
+        padding: 12px 20px;
+        letter-spacing: 0.02em;
+    }
+}
+
 /* Toast notifications */
 .toast-stack {
     position: fixed;
@@ -3047,6 +3237,29 @@ h2::after {
 
     .carrito-productos {
         max-height: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .carrito-intro,
+    .carrito,
+    .carrito-asesoria {
+        padding-left: 5%;
+        padding-right: 5%;
+    }
+
+    .checkout-form {
+        grid-template-columns: 1fr;
+    }
+
+    .checkout-form h2,
+    .checkout-ayuda,
+    .checkout-form h3,
+    .checkout-form .btn-confirmar,
+    #direccion,
+    #detalle-direccion,
+    #ciudad {
+        grid-column: span 1;
     }
 }
 

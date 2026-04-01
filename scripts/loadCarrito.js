@@ -5,6 +5,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
 
+  function obtenerEstadoCheckout() {
+    if (window.checkoutShipping?.getState) {
+      return window.checkoutShipping.getState();
+    }
+    return window.checkoutState || {};
+  }
+
+  function obtenerCostoEnvio() {
+    return Number(obtenerEstadoCheckout().shippingCost || 0);
+  }
+
+  function obtenerZonaEnvio() {
+    return obtenerEstadoCheckout().shippingZone || "Zona nacional";
+  }
+
   function renderCarrito() {
     contenedor.innerHTML = "";
 
@@ -68,7 +83,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const totalDiv = document.createElement("div");
       totalDiv.classList.add("precio-pedido");
       totalDiv.innerHTML = `
-        <h3 class="total-pedido">Total del pedido: $${calcularTotal().toLocaleString()}</h3>
+        <p class="total-line">Subtotal: <strong class="subtotal-pedido">$${calcularSubtotal().toLocaleString("es-CO")}</strong></p>
+        <p class="total-line">Envio: <strong class="envio-pedido">$${obtenerCostoEnvio().toLocaleString("es-CO")}</strong></p>
+        <p class="total-zone">Zona: <span class="zona-pedido">${obtenerZonaEnvio()}</span></p>
+        <h3 class="total-pedido">Total del pedido: <span class="total-pedido-valor">$${calcularTotal().toLocaleString("es-CO")}</span></h3>
         <button type="button" class="btn-pagar">COMPRAR</button>
       `;
       contenedor.appendChild(totalDiv);
@@ -80,23 +98,41 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function calcularTotal() {
+  function calcularSubtotal() {
     return carrito.reduce((acc, prod) => acc + prod.precio * prod.cantidad, 0);
   }
 
+  function calcularTotal() {
+    return calcularSubtotal() + obtenerCostoEnvio();
+  }
+
   function actualizarTotal() {
-    const totalDiv = contenedor.querySelector(".precio-pedido h3");
-    if (totalDiv) {
-      totalDiv.textContent = `Total del pedido: $${calcularTotal().toLocaleString()}`;
-    }
+    const subtotalNodo = contenedor.querySelector(".subtotal-pedido");
+    const envioNodo = contenedor.querySelector(".envio-pedido");
+    const zonaNodo = contenedor.querySelector(".zona-pedido");
+    const totalNodo = contenedor.querySelector(".total-pedido-valor");
+
+    if (subtotalNodo) subtotalNodo.textContent = `$${calcularSubtotal().toLocaleString("es-CO")}`;
+    if (envioNodo) envioNodo.textContent = `$${obtenerCostoEnvio().toLocaleString("es-CO")}`;
+    if (zonaNodo) zonaNodo.textContent = obtenerZonaEnvio();
+    if (totalNodo) totalNodo.textContent = `$${calcularTotal().toLocaleString("es-CO")}`;
   }
 
   // Exponer funciones y carrito para otros módulos
   window.carritoModule = {
     renderCarrito,
+    calcularSubtotal,
     calcularTotal,
     carrito
   };
+
+  document.addEventListener("shipping:updated", () => {
+    actualizarTotal();
+  });
+
+  window.addEventListener("shipping:updated", () => {
+    actualizarTotal();
+  });
 
   renderCarrito();
 });

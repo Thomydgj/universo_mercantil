@@ -33,10 +33,13 @@ if (producto) {
   const card = template.content.cloneNode(true);
 
   const variantes = Array.isArray(producto.variantes) ? producto.variantes : [];
-  const variantesNormalizadas = variantes.map((variante, index) => ({
-    ...variante,
-    key: variante.id || `variante-${index + 1}`
-  }));
+  const variantesNormalizadas = variantes
+    .filter(variante => variante && (variante.nombre || variante.id || variante.color))
+    .map((variante, index) => ({
+      ...variante,
+      key: variante.id || `variante-${index + 1}`,
+      etiqueta: variante.color ? `${variante.nombre || `Variante ${index + 1}`} - Color ${variante.color}` : (variante.nombre || `Variante ${index + 1}`)
+    }));
   const tieneVariantes = variantesNormalizadas.length > 0;
   const MAX_VARIANTES_CHIPS = 7;
   let varianteActivaKey = tieneVariantes ? variantesNormalizadas[0].key : null;
@@ -95,7 +98,7 @@ if (producto) {
         botonVariante.type = "button";
         botonVariante.className = "variante-chip";
         botonVariante.dataset.varianteKey = variante.key;
-        botonVariante.textContent = variante.nombre || `Variante ${index + 1}`;
+        botonVariante.textContent = variante.etiqueta;
         botonVariante.setAttribute("role", "radio");
         chipsVariantes.appendChild(botonVariante);
       });
@@ -109,7 +112,7 @@ if (producto) {
       variantesNormalizadas.forEach((variante, index) => {
         const option = document.createElement("option");
         option.value = variante.key;
-        option.textContent = variante.nombre || `Variante ${index + 1}`;
+        option.textContent = variante.etiqueta;
         selectVariante.appendChild(option);
       });
 
@@ -152,7 +155,7 @@ if (producto) {
     precioNodo.textContent = `$${precio.toLocaleString("es-CO")}`;
     referenciaNodo.textContent = `Ref: ${refBase}${refVariante}`;
 
-    const etiquetaVariante = variante?.nombre ? ` - ${variante.nombre}` : "";
+    const etiquetaVariante = variante?.etiqueta ? ` - ${variante.etiqueta}` : "";
     const textoWhatsApp = encodeURIComponent(
       `Hola, quiero informacion sobre ${producto.nombre}${etiquetaVariante} (ref: ${producto.id}).`
     );

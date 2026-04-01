@@ -1,5 +1,9 @@
 // checkout.js
 document.addEventListener("DOMContentLoaded", () => {
+  const runtimeConfig = window.UNIVERSO_CONFIG || {};
+  const BACKEND_BASE_URL = (runtimeConfig.backendBaseUrl || "http://localhost:8000").replace(/\/$/, "");
+  const SALES_WHATSAPP_NUMBER = runtimeConfig.whatsapp || "573001234567";
+
   const notify = (message, type) => {
     if (typeof window.showToast === "function") {
       window.showToast(message, type);
@@ -15,9 +19,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let paymentTab = null;
 
-    const { calcularTotal, carrito } = window.carritoModule || {};
+    const { calcularTotal, calcularSubtotal, carrito } = window.carritoModule || {};
 
-    if (!calcularTotal || !carrito) {
+    if (!calcularTotal || !calcularSubtotal || !carrito) {
       notify("No se pudo cargar el carrito. Intenta nuevamente.", "error");
       return;
     }
@@ -34,10 +38,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const carritoActual = JSON.parse(localStorage.getItem("carrito")) || carrito;
 
-    const amount_in_cents = calcularTotal() * 100;
+    const subtotal = calcularSubtotal();
+    const shipping_cost = Number(window.datosEnvioConfirmados?.shippingCost || 0);
+    const total = subtotal + shipping_cost;
+    const amount_in_cents = total * 100;
     const WOMPI_MIN_AMOUNT_IN_CENTS = 150000; // 1500 COP
+    const paymentMethod = window.datosEnvioConfirmados?.paymentMethod || "wompi";
+    const deliveryType = window.datosEnvioConfirmados?.deliveryType || "shipping";
 
-    if (amount_in_cents < WOMPI_MIN_AMOUNT_IN_CENTS) {
+    if (paymentMethod === "wompi" && amount_in_cents < WOMPI_MIN_AMOUNT_IN_CENTS) {
       const minimoCop = Math.round(WOMPI_MIN_AMOUNT_IN_CENTS / 100);
       const faltanteCop = Math.round((WOMPI_MIN_AMOUNT_IN_CENTS - amount_in_cents) / 100);
       notify(`El monto minimo para pagar con Wompi es $${minimoCop.toLocaleString("es-CO")}. Te faltan $${faltanteCop.toLocaleString("es-CO")}.`, "warning");
@@ -86,12 +95,51 @@ document.addEventListener("DOMContentLoaded", () => {
       description: `Compra de ${items.length} productos`,
       collect_shipping: true,
       single_use: true,
+      subtotal,
+      shipping_cost,
+      shipping_zone: window.datosEnvioConfirmados?.shippingZone || "Zona Nacional",
+      delivery_type: deliveryType,
+      payment_method: paymentMethod,
+      pickup_message: window.datosEnvioConfirmados?.pickupMessage || "",
       buyer,
-      shipping_address,
+      shipping_address: deliveryType === "pickup" ? {} : shipping_address,
       items
     };
 
     try {
+      if (paymentMethod === "direct") {
+        notify("Creando pedido con pago pendiente...", "info");
+        const directRes = await fetch(`${BACKEND_BASE_URL}/order/create-for-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const directRaw = await directRes.text();
+        let directData = {};
+        try {
+          directData = directRaw ? JSON.parse(directRaw) : {};
+        } catch {
+          throw new Error(`Respuesta invalida del servidor (${directRes.status})`);
+        }
+
+        if (!directRes.ok) {
+          throw new Error(directData?.message || `No se pudo crear el pedido (HTTP ${directRes.status})`);
+        }
+
+        const orderRef = directData?.reference || reference;
+        const nombre = `${buyer.nombre} ${buyer.apellidos}`.trim();
+        const mensaje = encodeURIComponent(
+          `Hola, acabo de crear el pedido ${orderRef}. Pago pendiente. Cliente: ${nombre || "N/A"}. Total: $${total.toLocaleString("es-CO")}. Quiero coordinar el pago directo.`
+        );
+
+        notify(`Pedido ${orderRef} creado con estado pendiente. Te redirigimos a WhatsApp.`, "success");
+        setTimeout(() => {
+          window.open(`https://wa.me/${SALES_WHATSAPP_NUMBER}?text=${mensaje}`, "_blank", "noopener");
+        }, 900);
+        return;
+      }
+
       // Open the tab at click-time (before await) so browsers don't block it.
       paymentTab = window.open("about:blank", "_blank");
       if (paymentTab && paymentTab.document) {
@@ -101,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       notify("Preparando enlace de pago...", "info");
 
-      const res = await fetch("https://fe58-191-110-202-126.ngrok-free.app/checkout", {
+      const res = await fetch(`${BACKEND_BASE_URL}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

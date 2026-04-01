@@ -175,6 +175,7 @@ const productos = [
             {
                 id: "pequena",
                 nombre: "Bolsa pequena",
+                color: "Transparente",
                 precio: "20500",
                 descripcionLarga: "Version compacta para porciones individuales o productos de bajo gramaje.",
                 imagenes: [
@@ -185,6 +186,7 @@ const productos = [
             {
                 id: "mediana",
                 nombre: "Bolsa mediana",
+                color: "Blanco perlado",
                 precio: "21000",
                 descripcionLarga: "Tamano intermedio recomendado para lineas de rotacion frecuente.",
                 imagenes: [
@@ -195,6 +197,7 @@ const productos = [
             {
                 id: "grande",
                 nombre: "Bolsa grande",
+                color: "Negro mate",
                 precio: "21800",
                 descripcionLarga: "Mayor capacidad para presentaciones familiares y surtidos de alto volumen.",
                 imagenes: [
@@ -278,6 +281,7 @@ const productos = [
             {
                 id: "ventana-frontal",
                 nombre: "Ventana frontal",
+                color: "Transparente",
                 precio: "26000",
                 descripcionLarga: "Diseno con ventana frontal para maxima visibilidad del producto en estanteria.",
                 imagenes: [
@@ -288,6 +292,7 @@ const productos = [
             {
                 id: "ventana-lateral",
                 nombre: "Ventana lateral",
+                color: "Kraft natural",
                 precio: "26800",
                 descripcionLarga: "Ventana lateral para propuestas premium con identidad visual diferenciada.",
                 imagenes: [
