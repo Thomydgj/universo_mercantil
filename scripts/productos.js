@@ -171,6 +171,38 @@ const productos = [
             "assets/images/productos/Bolsa_Plana/Plana4.png",
             "assets/images/productos/Bolsa_Plana/Plana5.png"
         ],
+        variantes: [
+            {
+                id: "pequena",
+                nombre: "Bolsa pequena",
+                precio: "20500",
+                descripcionLarga: "Version compacta para porciones individuales o productos de bajo gramaje.",
+                imagenes: [
+                    "assets/images/productos/Bolsa_Plana/Plana1.png",
+                    "assets/images/productos/Bolsa_Plana/Plana2.png"
+                ]
+            },
+            {
+                id: "mediana",
+                nombre: "Bolsa mediana",
+                precio: "21000",
+                descripcionLarga: "Tamano intermedio recomendado para lineas de rotacion frecuente.",
+                imagenes: [
+                    "assets/images/productos/Bolsa_Plana/Plana3.png",
+                    "assets/images/productos/Bolsa_Plana/Plana4.png"
+                ]
+            },
+            {
+                id: "grande",
+                nombre: "Bolsa grande",
+                precio: "21800",
+                descripcionLarga: "Mayor capacidad para presentaciones familiares y surtidos de alto volumen.",
+                imagenes: [
+                    "assets/images/productos/Bolsa_Plana/Plana5.png",
+                    "assets/images/productos/Bolsa_Plana/Plana4.png"
+                ]
+            }
+        ],
         categorias: ["alimentos-preparados", "carnicos", "panaderia", "snacks"]
     },
     {
@@ -241,6 +273,28 @@ const productos = [
             "assets/images/productos/Flex_Up_con_Ventana/Ventana2.png",
             "assets/images/productos/Flex_Up_con_Ventana/Ventana3.png",
             "assets/images/productos/Flex_Up_con_Ventana/Ventana4.webp"
+        ],
+        variantes: [
+            {
+                id: "ventana-frontal",
+                nombre: "Ventana frontal",
+                precio: "26000",
+                descripcionLarga: "Diseno con ventana frontal para maxima visibilidad del producto en estanteria.",
+                imagenes: [
+                    "assets/images/productos/Flex_Up_con_Ventana/Ventana1.png",
+                    "assets/images/productos/Flex_Up_con_Ventana/Ventana2.png"
+                ]
+            },
+            {
+                id: "ventana-lateral",
+                nombre: "Ventana lateral",
+                precio: "26800",
+                descripcionLarga: "Ventana lateral para propuestas premium con identidad visual diferenciada.",
+                imagenes: [
+                    "assets/images/productos/Flex_Up_con_Ventana/Ventana3.png",
+                    "assets/images/productos/Flex_Up_con_Ventana/Ventana4.webp"
+                ]
+            }
         ],
         categorias: ["mascotas", "panaderia", "snacks"]
     },

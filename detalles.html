@@ -26,13 +26,25 @@
 
                 <article class="detalle-producto-card">
 
-                <div class="carrusel-producto"> 
+                <div class="detalle-media">
 
-                    <button class="prev">‹</button>
-                    <div class="carrusel-fila">
-                        <!-- Las imágenes del carrusel se cargarán aquí dinámicamente -->
+                    <div class="carrusel-producto"> 
+
+                        <button class="prev">‹</button>
+                        <div class="carrusel-fila">
+                            <!-- Las imágenes del carrusel se cargarán aquí dinámicamente -->
+                        </div>
+                        <button class="next">›</button>
+
                     </div>
-                    <button class="next">›</button>
+
+                    <div class="selector-variante-wrap" hidden>
+                        <p class="selector-variante-titulo">Variante:</p>
+                        <div class="variantes-chips" role="radiogroup" aria-label="Variantes del producto"></div>
+                        <label for="variante" class="selector-variante-label" hidden>Selecciona una variante</label>
+                        <select id="variante" class="selector-variante" hidden></select>
+                        <p class="selector-variante-ayuda" hidden></p>
+                    </div>
 
                 </div>
 
@@ -71,8 +83,8 @@
 
         <section class="detalle-asesoria">
             <div class="detalle-asesoria-content">
-                <h2>Necesitas una recomendacion personalizada?</h2>
-                <p>Cuéntanos tu tipo de producto y te ayudamos a elegir el empaque ideal segun conservacion, transporte y presentacion final.</p>
+                <h2>¿Necesitas una recomendacion personalizada?</h2>
+                <!-- <p>Cuéntanos tu tipo de producto y te ayudamos a elegir el empaque ideal segun conservacion, transporte y presentacion final.</p> -->
                 <a href="/principal.html#cotizacion" class="btn-catalogo-asesoria">Solicitar asesoria</a>
             </div>
         </section>

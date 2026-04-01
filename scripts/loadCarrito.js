@@ -9,12 +9,18 @@ document.addEventListener("DOMContentLoaded", () => {
     contenedor.innerHTML = "";
 
     carrito.forEach(prod => {
+      const itemKey = prod.cartKey || (prod.varianteId ? `${prod.id}::${prod.varianteId}` : prod.id);
       const clone = template.content.cloneNode(true);
 
       // Rellenar datos
       clone.querySelector("img").src = prod.imagen;
       clone.querySelector(".nombre-carrito").textContent = prod.nombre;
-      clone.querySelector(".precio-carrito").textContent = `$${prod.precio.toLocaleString()}`;
+      clone.querySelector(".precio-carrito").textContent = `$${Number(prod.precio).toLocaleString("es-CO")}`;
+      const varianteNodo = clone.querySelector(".variante-carrito");
+      if (varianteNodo && prod.varianteNombre) {
+        varianteNodo.hidden = false;
+        varianteNodo.textContent = `Variante: ${prod.varianteNombre}`;
+      }
       const inputCantidad = clone.querySelector("input[type='number']");
       inputCantidad.value = prod.cantidad;
 
@@ -45,7 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const btnEliminar = clone.querySelector(".btn-eliminar");
       if (btnEliminar) {
         btnEliminar.addEventListener("click", () => {
-          carrito = carrito.filter(p => p.id !== prod.id);
+          carrito = carrito.filter(p => {
+            const key = p.cartKey || (p.varianteId ? `${p.id}::${p.varianteId}` : p.id);
+            return key !== itemKey;
+          });
           localStorage.setItem("carrito", JSON.stringify(carrito));
           renderCarrito();
         });

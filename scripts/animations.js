@@ -68,19 +68,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Botón "Volver Arriba"
+    // Botón "Volver Arriba" y accesos rápidos de contacto
     const backToTopButton = document.getElementById('backToTop');
-    
-    if (backToTopButton) {
-        // Mostrar/ocultar botón según scroll
-        window.addEventListener('scroll', function() {
-            if (window.pageYOffset > 300) {
+
+    function updateFloatingButtons() {
+        const scrollY = window.pageYOffset;
+        const quickContactButtons = document.querySelector('.quick-contact');
+
+        if (backToTopButton) {
+            if (scrollY > 600) {
                 backToTopButton.classList.add('visible');
             } else {
                 backToTopButton.classList.remove('visible');
             }
-        });
-        
+        }
+
+        if (quickContactButtons) {
+            if (scrollY > 600) {
+                quickContactButtons.classList.add('visible');
+            } else {
+                quickContactButtons.classList.remove('visible');
+            }
+        }
+    }
+
+    window.addEventListener('scroll', updateFloatingButtons);
+    window.addEventListener('load', updateFloatingButtons);
+    updateFloatingButtons();
+
+    if (backToTopButton) {
         // Scroll suave al hacer clic
         backToTopButton.addEventListener('click', function() {
             window.scrollTo({

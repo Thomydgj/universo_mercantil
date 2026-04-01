@@ -700,6 +700,74 @@ header{
     transform: translateY(-3px);
 }
 
+/* ============================ QUICK CONTACT BUTTONS =========================== */
+.quick-contact {
+    position: fixed;
+    right: 30px;
+    bottom: 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.quick-contact.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.quick-contact-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    text-decoration: none;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(4, 31, 56, 0.25);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.quick-contact-btn.whatsapp {
+    background: linear-gradient(135deg, #1fbe5b 0%, #138a3f 100%);
+}
+
+.quick-contact-btn.call {
+    background: linear-gradient(135deg, #ff6b00 0%, #df5a00 100%);
+}
+
+.quick-contact-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 22px rgba(4, 31, 56, 0.28);
+    filter: saturate(1.08);
+}
+
+.quick-contact-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .quick-contact {
+        right: 15px;
+        bottom: 82px;
+        gap: 8px;
+    }
+
+    .quick-contact-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .back-to-top {
+        right: 12px;
+        bottom: 24px;
+    }
+}
+
 /* ============================footer=========================== */
 
 footer{
@@ -1708,6 +1776,7 @@ h2::after {
     max-width: 1240px;
     margin: 52px auto 0;
     padding: 0 10%;
+    
 }
 
 .categorias-asesoria-content {
@@ -1715,13 +1784,14 @@ h2::after {
     color: #ffffff;
     border-radius: 16px;
     padding: 32px;
+    text-align: center;
 }
 
 .categorias-asesoria-content h2 {
     color: #ffffff;
     margin: 0 0 12px;
     font-size: 2rem;
-    text-align: left;
+
 }
 
 .categorias-asesoria-content h2::after {
@@ -1790,6 +1860,7 @@ h2::after {
     line-height: 1.6;
     max-width: 900px;
     margin: 0 auto 26px 0;
+    text-align: center;
 }
 
 .catalogo-meta {
@@ -1960,6 +2031,7 @@ h2::after {
 
 #productos.catalogo-page .catalogo-asesoria-content h2 {
     color: #ffffff;
+    font-size: 2rem;
 }
 
 .catalogo-asesoria-content h2::after {
@@ -2104,6 +2176,7 @@ h2::after {
     font-size: 2.6rem;
     color: #034d99;
     margin-bottom: 8px;
+    margin-top: 30px;
     text-align: center;
 }
 
@@ -2122,6 +2195,12 @@ h2::after {
     border: 1px solid #d6e5f3;
     box-shadow: 0 16px 34px rgba(18, 56, 90, 0.12);
     padding: 24px;
+}
+
+.detalle-media {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .carrusel-producto {
@@ -2168,9 +2247,7 @@ h2::after {
 .carrusel-producto .next {
   right: 10px;
 }
-.detalle-titulo{
-    text-align: center;
-}
+
 
 .detalles-texto{
     width: 100%;
@@ -2243,6 +2320,92 @@ h2::after {
     background-color: #ff6b00;
     margin: 10px 0 0;
     border-radius: 2px;
+}
+
+.selector-variante-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 9px;
+    border: 1px solid #d6e5f3;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f9fd 100%);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+.selector-variante-titulo,
+.selector-variante-label {
+    font-family: 'Spline Sans', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #034d99;
+    margin: 0;
+}
+
+.variantes-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.variante-chip {
+    border: 1px solid #c9d9e8;
+    background-color: #ffffff;
+    color: #3b4d5e;
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.variante-chip:hover {
+    border-color: #9bb8d4;
+    color: #1f3750;
+}
+
+.variante-chip:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(3, 77, 153, 0.16);
+    border-color: #034d99;
+}
+
+.variante-chip.is-active {
+    background-color: #034d99;
+    border-color: #034d99;
+    color: #ffffff;
+    box-shadow: 0 8px 16px rgba(3, 77, 153, 0.2);
+}
+
+.selector-variante-ayuda {
+    margin: 0;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.8rem;
+    color: #617486;
+}
+
+.selector-variante {
+    min-width: 0;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid #c9d9e8;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #304152;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.95rem;
+}
+
+.selector-variante:focus {
+    border-color: #034d99;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(3, 77, 153, 0.13);
+}
+
+.selector-variante:hover {
+    border-color: #9bb8d4;
 }
 
 .detalle-beneficios {
@@ -2363,13 +2526,14 @@ h2::after {
     color: #ffffff;
     border-radius: 16px;
     padding: 30px;
+    text-align: center;
 }
 
 .detalle-asesoria-content h2 {
     color: #ffffff;
     margin: 0 0 10px;
-    text-align: left;
-    font-size: 1.9rem;
+
+    font-size: 2rem;
 }
 
 .detalle-asesoria-content h2::after {
@@ -2435,6 +2599,21 @@ h2::after {
         width: 100%;
     }
 
+    .selector-variante {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .variantes-chips {
+        gap: 6px;
+    }
+
+    .variante-chip {
+        width: 100%;
+        text-align: center;
+        border-radius: 8px;
+    }
+
     .detalle-asesoria-content {
         padding: 22px;
     }
@@ -2463,6 +2642,10 @@ h2::after {
     font-size: 2.6rem;
     color: #034d99;
     margin-bottom: 8px;
+    text-align: center;
+}
+
+.carrito-intro p{
     text-align: center;
 }
 
@@ -2641,6 +2824,18 @@ h2::after {
   font-weight: 700;
   color: #034d99;
   margin: 0;
+}
+
+.variante-carrito {
+    margin: 0;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #3d5164;
+    background-color: #edf4fb;
+    border: 1px solid #d6e5f3;
+    border-radius: 999px;
+    padding: 4px 10px;
 }
 
 .precio-carrito {

@@ -67,7 +67,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const cantidad = Number(item.cantidad) || 1;
       return {
         id: item.id,
+        sku: item.cartKey || (item.varianteId ? `${item.id}::${item.varianteId}` : item.id),
         nombre: item.nombre,
+        variante_id: item.varianteId || null,
+        variante_nombre: item.varianteNombre || null,
         cantidad,
         precio,
         subtotal: precio * cantidad
@@ -98,7 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       notify("Preparando enlace de pago...", "info");
 
-      const res = await fetch("https://f67a-181-234-90-245.ngrok-free.app/checkout", {
+      const res = await fetch("https://fe58-191-110-202-126.ngrok-free.app/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
