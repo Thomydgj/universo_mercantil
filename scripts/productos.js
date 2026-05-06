@@ -174,6 +174,7 @@ const productos = [
         variantes: [
             {
                 id: "pequena",
+                tamano: "Pequena",
                 nombre: "Bolsa pequena",
                 color: "Transparente",
                 precio: "20500",
@@ -185,6 +186,7 @@ const productos = [
             },
             {
                 id: "mediana",
+                tamano: "Mediana",
                 nombre: "Bolsa mediana",
                 color: "Blanco perlado",
                 precio: "21000",
@@ -196,6 +198,7 @@ const productos = [
             },
             {
                 id: "grande",
+                tamano: "Grande",
                 nombre: "Bolsa grande",
                 color: "Negro mate",
                 precio: "21800",
@@ -261,7 +264,13 @@ const productos = [
             "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles2.png",
             "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles3.png",
             "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles4.png",
-            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles5.png"
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles5.png",
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles6.png",
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles7.png",
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles8.png",
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles9.png",
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles10.png",
+            "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles11.png",
         ],
         categorias: ["cafe-chocolate", "panaderia", "snacks"]
     },
@@ -280,6 +289,7 @@ const productos = [
         variantes: [
             {
                 id: "ventana-frontal",
+                tamano: "Mediano",
                 nombre: "Ventana frontal",
                 color: "Transparente",
                 precio: "26000",
@@ -291,6 +301,7 @@ const productos = [
             },
             {
                 id: "ventana-lateral",
+                tamano: "Mediano",
                 nombre: "Ventana lateral",
                 color: "Kraft natural",
                 precio: "26800",

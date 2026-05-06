@@ -3,6 +3,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const runtimeConfig = window.UNIVERSO_CONFIG || {};
   const BACKEND_BASE_URL = (runtimeConfig.backendBaseUrl || "http://localhost:8000").replace(/\/$/, "");
   const SALES_WHATSAPP_NUMBER = runtimeConfig.whatsapp || "573001234567";
+  const BACKEND_API_KEY = runtimeConfig.apiKey || "";
+
+  const buildRequestHeaders = () => {
+    const headers = { "Content-Type": "application/json" };
+    if (BACKEND_API_KEY) {
+      headers["X-Api-Key"] = BACKEND_API_KEY;
+    }
+    return headers;
+  };
 
   const notify = (message, type) => {
     if (typeof window.showToast === "function") {
@@ -111,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
         notify("Creando pedido con pago pendiente...", "info");
         const directRes = await fetch(`${BACKEND_BASE_URL}/order/create-for-payment`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: buildRequestHeaders(),
           body: JSON.stringify(payload)
         });
 
@@ -151,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const res = await fetch(`${BACKEND_BASE_URL}/checkout`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: buildRequestHeaders(),
         body: JSON.stringify(payload)
       });
 

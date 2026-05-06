@@ -1,9 +1,12 @@
 import hashlib
+import hmac
 import json
 import logging
 import os
+import re
 import smtplib
 import time
+import uuid
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
@@ -40,6 +43,8 @@ app = Flask(__name__)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
 # Variables de entorno
 ALLOWED_ORIGINS = [
     origin.strip()
@@ -56,8 +61,16 @@ CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
 WOMPI_PUBLIC_KEY = os.getenv("WOMPI_PUBLIC_KEY")
 WOMPI_PRIVATE_KEY = os.getenv("WOMPI_PRIVATE_KEY")
 WOMPI_INTEGRITY_SECRET = os.getenv("WOMPI_INTEGRITY_SECRET")
+WOMPI_WEBHOOK_SECRET = os.getenv("WOMPI_WEBHOOK_SECRET") or WOMPI_INTEGRITY_SECRET
 WOMPI_URL = os.getenv("WOMPI_URL", "https://sandbox.wompi.co/v1")
 BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http://localhost:8000"
+FRONTEND_BASE_URL = (os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500").rstrip("/")
+SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "").strip()
+MIN_ORDER_AMOUNT_IN_CENTS = int(os.getenv("MIN_ORDER_AMOUNT_IN_CENTS", "50000"))
+MAX_ORDER_AMOUNT_IN_CENTS = int(os.getenv("MAX_ORDER_AMOUNT_IN_CENTS", "10000000000"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "50"))
 
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -68,6 +81,7 @@ FACTURACION_EMAIL_TO = os.getenv("FACTURACION_EMAIL_TO")
 FACTURACION_EMAIL_CC = os.getenv("FACTURACION_EMAIL_CC", "")
 
 STORE_PATH = Path(__file__).resolve().parent / "orders_store.json"
+_request_window: dict[str, list[float]] = {}
 
 if DB_ENABLED:
     init_database()
@@ -76,6 +90,210 @@ logger.info("Modo de persistencia activo: %s", explain_storage_mode())
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def make_error(message: str, status_code: int = 400):
+    return jsonify({"ok": False, "message": message}), status_code
+
+
+def parse_int(value, default=0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def generate_reference() -> str:
+    return f"orden_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+
+
+def validate_email(value: str) -> bool:
+    return bool(EMAIL_RE.match((value or "").strip()))
+
+
+def request_rate_limited(scope: str) -> bool:
+    now = time.time()
+    remote_addr = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+    key = f"{scope}:{remote_addr}"
+    window = _request_window.get(key, [])
+    window = [entry for entry in window if (now - entry) < RATE_LIMIT_WINDOW_SECONDS]
+
+    if len(window) >= RATE_LIMIT_MAX_REQUESTS:
+        _request_window[key] = window
+        return True
+
+    window.append(now)
+    _request_window[key] = window
+    return False
+
+
+def is_allowed_origin() -> bool:
+    if not ALLOWED_ORIGINS:
+        return True
+
+    origin = (request.headers.get("Origin") or "").strip()
+    if origin in ALLOWED_ORIGINS:
+        return True
+
+    referer = (request.headers.get("Referer") or "").strip()
+    return any(referer.startswith(f"{allowed}/") or referer == allowed for allowed in ALLOWED_ORIGINS)
+
+
+def verify_api_key() -> bool:
+    if not BACKEND_API_KEY:
+        return True
+
+    provided = (request.headers.get("X-Api-Key") or "").strip()
+    return bool(provided) and hmac.compare_digest(provided, BACKEND_API_KEY)
+
+
+def extract_signature_from_headers() -> str:
+    candidates = [
+        request.headers.get("X-Wompi-Signature"),
+        request.headers.get("X-Event-Checksum"),
+        request.headers.get("X-Signature"),
+    ]
+    raw = next((value for value in candidates if value), "")
+    if not raw:
+        return ""
+    if "=" in raw:
+        raw = raw.split("=", 1)[1]
+    return raw.strip().lower()
+
+
+def verify_webhook_signature(raw_payload: bytes) -> bool:
+    if not WOMPI_WEBHOOK_SECRET:
+        logger.error("WOMPI_WEBHOOK_SECRET no configurado")
+        return False
+
+    received_signature = extract_signature_from_headers()
+    if not received_signature:
+        return False
+
+    expected_signature = hmac.new(
+        WOMPI_WEBHOOK_SECRET.encode("utf-8"),
+        raw_payload,
+        hashlib.sha256,
+    ).hexdigest().lower()
+    return hmac.compare_digest(expected_signature, received_signature)
+
+
+def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict | None, str | None]:
+    if not isinstance(data, dict):
+        return None, "Payload invalido"
+
+    customer_email = (data.get("customer_email") or "").strip()
+    if not validate_email(customer_email):
+        return None, "Email invalido"
+
+    raw_items = data.get("items") or []
+    if not isinstance(raw_items, list) or not raw_items:
+        return None, "El pedido debe incluir al menos un producto"
+
+    normalized_items = []
+    items_total = 0
+    for item in raw_items:
+        if not isinstance(item, dict):
+            return None, "Formato de item invalido"
+
+        quantity = parse_int(item.get("cantidad"), 0)
+        price = parse_int(item.get("precio"), -1)
+        if quantity < 1 or price < 0:
+            return None, "Cantidad o precio invalido"
+
+        subtotal = quantity * price
+        items_total += subtotal
+
+        normalized_items.append({
+            "id": item.get("id"),
+            "sku": item.get("sku"),
+            "nombre": item.get("nombre") or "Producto",
+            "variante_id": item.get("variante_id"),
+            "variante_nombre": item.get("variante_nombre"),
+            "cantidad": quantity,
+            "precio": price,
+            "subtotal": subtotal,
+        })
+
+    shipping_cost = max(0, parse_int(data.get("shipping_cost"), 0))
+    delivery_type = (data.get("delivery_type") or "shipping").lower()
+    if delivery_type not in {"shipping", "pickup"}:
+        return None, "Tipo de entrega invalido"
+
+    if delivery_type == "pickup":
+        shipping_cost = 0
+
+    payment_method = ("direct" if is_direct_payment else (data.get("payment_method") or "wompi")).lower()
+    if payment_method not in {"wompi", "direct"}:
+        return None, "Metodo de pago invalido"
+
+    subtotal = items_total
+    amount_in_cents = (subtotal + shipping_cost) * 100
+    if amount_in_cents < MIN_ORDER_AMOUNT_IN_CENTS:
+        return None, "El valor total del pedido no alcanza el minimo permitido"
+    if amount_in_cents > MAX_ORDER_AMOUNT_IN_CENTS:
+        return None, "El valor total del pedido excede el maximo permitido"
+
+    shipping_address = data.get("shipping_address") if isinstance(data.get("shipping_address"), dict) else {}
+    if delivery_type == "pickup":
+        shipping_address = {}
+
+    buyer = data.get("buyer") if isinstance(data.get("buyer"), dict) else {}
+
+    normalized = {
+        "reference": generate_reference(),
+        "amount_in_cents": amount_in_cents,
+        "currency": (data.get("currency") or "COP").upper(),
+        "customer_email": customer_email,
+        "name": data.get("name") or "Compra en carrito",
+        "description": data.get("description") or f"Compra de {len(normalized_items)} productos",
+        "buyer": buyer,
+        "shipping_address": shipping_address,
+        "items": normalized_items,
+        "subtotal": subtotal,
+        "shipping_cost": shipping_cost,
+        "shipping_zone": data.get("shipping_zone") or "Zona Nacional",
+        "delivery_type": delivery_type,
+        "payment_method": payment_method,
+        "pickup_message": data.get("pickup_message") or "",
+    }
+    return normalized, None
+
+
+def build_checkout_result_ui(sync: dict | None) -> dict:
+    sync_status = (sync or {}).get("status") or "unknown"
+    reason = (sync or {}).get("reason") or ""
+
+    tone = "info"
+    title = "Estamos procesando tu pago"
+    subtitle = "Tu proceso de checkout fue recibido. Te sugerimos verificar el estado de tu pedido en unos segundos."
+
+    if sync_status == "ok":
+        tone = "success"
+        title = "Pago confirmado"
+        subtitle = "Tu pago fue validado correctamente y tu pedido esta en proceso."
+    elif sync_status == "error":
+        tone = "error"
+        title = "No se pudo confirmar el pago"
+        subtitle = "Hubo un problema procesando la confirmacion. Intenta nuevamente o contactanos."
+    elif sync_status == "ignored" and "DECLINED" in reason:
+        tone = "error"
+        title = "Pago rechazado"
+        subtitle = "La pasarela reporto que el pago fue rechazado. Puedes intentarlo de nuevo con otro metodo."
+    elif sync_status == "ignored":
+        tone = "warning"
+        title = "Pago en revision"
+        subtitle = "Aun no tenemos una aprobacion final del pago."
+
+    detail = (sync or {}).get("message") or reason or "Sin detalle adicional"
+
+    return {
+        "tone": tone,
+        "title": title,
+        "subtitle": subtitle,
+        "sync_status": sync_status,
+        "detail": detail,
+    }
 
 
 def load_order_store() -> dict:
@@ -202,7 +420,7 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
 
     if not sent:
         logger.error("Error correo facturacion (%s): %s", matched_reference, detail)
-        return {"status": "error", "message": "email_not_sent", "detail": detail}, 500
+        return {"status": "error", "message": "email_not_sent"}, 500
 
     return {"status": "ok", "message": "email_sent"}, 200
 
@@ -330,7 +548,19 @@ def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"
     return response
+
+
+@app.route("/health", methods=["GET"])
+def healthcheck():
+    return jsonify({
+        "ok": True,
+        "service": "universo-mercantil-backend",
+        "storage_mode": explain_storage_mode(),
+        "timestamp": now_iso(),
+    }), 200
 
 
 @app.route("/checkout", methods=["POST", "OPTIONS"])
@@ -339,24 +569,36 @@ def checkout():
         # Respuesta al preflight
         return ("", 200)
 
+    if request_rate_limited("checkout"):
+        return make_error("Demasiadas solicitudes. Intenta nuevamente en unos segundos.", 429)
+
+    if not is_allowed_origin():
+        return make_error("Origen no permitido", 403)
+
+    if not verify_api_key():
+        return make_error("Acceso no autorizado", 401)
+
     data = request.get_json(force=True)
 
-    reference = data.get("reference", f"orden_{int(time.time())}")
-    amount_in_cents = data.get("amount_in_cents", 500000)
-    currency = data.get("currency", "COP")
-    customer_email = data.get("customer_email", "cliente@ejemplo.com")
-    name = data.get("name", "Producto")
-    description = data.get("description", "Detalle de la compra")
+    normalized_payload, validation_error = validate_order_payload(data, is_direct_payment=False)
+    if validation_error:
+        return make_error(validation_error, 400)
 
-    buyer = data.get("buyer") or {}
-    shipping_address = data.get("shipping_address") or {}
-    items = data.get("items") or []
-    subtotal = int(data.get("subtotal") or amount_in_cents // 100)
-    shipping_cost = int(data.get("shipping_cost") or 0)
-    shipping_zone = data.get("shipping_zone") or "Zona Nacional"
-    delivery_type = (data.get("delivery_type") or "shipping").lower()
-    payment_method = (data.get("payment_method") or "wompi").lower()
-    pickup_message = data.get("pickup_message") or ""
+    reference = normalized_payload["reference"]
+    amount_in_cents = normalized_payload["amount_in_cents"]
+    currency = normalized_payload["currency"]
+    customer_email = normalized_payload["customer_email"]
+    name = normalized_payload["name"]
+    description = normalized_payload["description"]
+    buyer = normalized_payload["buyer"]
+    shipping_address = normalized_payload["shipping_address"]
+    items = normalized_payload["items"]
+    subtotal = normalized_payload["subtotal"]
+    shipping_cost = normalized_payload["shipping_cost"]
+    shipping_zone = normalized_payload["shipping_zone"]
+    delivery_type = normalized_payload["delivery_type"]
+    payment_method = normalized_payload["payment_method"]
+    pickup_message = normalized_payload["pickup_message"]
 
     signature = generar_firma(reference, amount_in_cents, currency, WOMPI_INTEGRITY_SECRET)
 
@@ -365,7 +607,7 @@ def checkout():
         "currency": currency,
         "reference": reference,
         "customer_email": customer_email,
-        "redirect_url": f"{BASE_URL}/checkout/resultado",
+        "redirect_url": f"{FRONTEND_BASE_URL}/resultado.html",
         "name": name,
         "description": description,
         "collect_shipping": False,
@@ -382,7 +624,11 @@ def checkout():
     }
 
     response = requests.post(f"{WOMPI_URL}/payment_links", json=payload, headers=headers, timeout=25)
-    wompi_payload = response.json()
+    try:
+        wompi_payload = response.json()
+    except ValueError:
+        logger.error("Respuesta no JSON recibida desde Wompi (status=%s)", response.status_code)
+        return make_error("No fue posible iniciar el pago en este momento", 502)
 
     wompi_data = wompi_payload.get("data") or {}
     payment_link_id = wompi_data.get("id")
@@ -415,7 +661,8 @@ def checkout():
     if link:
         return jsonify({"checkout_url": link}), 201
 
-    return jsonify(wompi_payload), response.status_code
+    logger.error("Error creando payment link en Wompi (status=%s)", response.status_code)
+    return make_error("No fue posible iniciar el pago en este momento", 502)
 
 
 @app.route("/order/create-for-payment", methods=["POST", "OPTIONS"])
@@ -423,35 +670,44 @@ def create_order_for_direct_payment():
     if request.method == "OPTIONS":
         return ("", 200)
 
-    data = request.get_json(force=True)
-    reference = data.get("reference", f"orden_{int(time.time())}")
-    amount_in_cents = int(data.get("amount_in_cents") or 0)
-    currency = data.get("currency", "COP")
-    customer_email = data.get("customer_email", "cliente@ejemplo.com")
-    items = data.get("items") or []
-    buyer = data.get("buyer") or {}
-    shipping_address = data.get("shipping_address") or {}
-    delivery_type = (data.get("delivery_type") or "shipping").lower()
-    payment_method = "direct"
-    shipping_cost = int(data.get("shipping_cost") or 0)
-    shipping_zone = data.get("shipping_zone") or "Zona Nacional"
+    if request_rate_limited("direct-payment"):
+        return make_error("Demasiadas solicitudes. Intenta nuevamente en unos segundos.", 429)
 
-    if delivery_type == "pickup":
-        shipping_address = {}
-        shipping_cost = 0
+    if not is_allowed_origin():
+        return make_error("Origen no permitido", 403)
+
+    if not verify_api_key():
+        return make_error("Acceso no autorizado", 401)
+
+    data = request.get_json(force=True)
+    normalized_payload, validation_error = validate_order_payload(data, is_direct_payment=True)
+    if validation_error:
+        return make_error(validation_error, 400)
+
+    reference = normalized_payload["reference"]
+    amount_in_cents = normalized_payload["amount_in_cents"]
+    currency = normalized_payload["currency"]
+    customer_email = normalized_payload["customer_email"]
+    items = normalized_payload["items"]
+    buyer = normalized_payload["buyer"]
+    shipping_address = normalized_payload["shipping_address"]
+    delivery_type = normalized_payload["delivery_type"]
+    payment_method = "direct"
+    shipping_cost = normalized_payload["shipping_cost"]
+    shipping_zone = normalized_payload["shipping_zone"]
 
     upsert_order(reference, {
         "amount_in_cents": amount_in_cents,
         "currency": currency,
         "customer_email": customer_email,
-        "name": data.get("name", "Compra en carrito"),
-        "description": data.get("description", f"Compra de {len(items)} productos"),
-        "subtotal": int(data.get("subtotal") or 0),
+        "name": normalized_payload["name"],
+        "description": normalized_payload["description"],
+        "subtotal": normalized_payload["subtotal"],
         "shipping_cost": shipping_cost,
         "shipping_zone": shipping_zone,
         "delivery_type": delivery_type,
         "payment_method": payment_method,
-        "pickup_message": data.get("pickup_message") or "",
+        "pickup_message": normalized_payload["pickup_message"],
         "buyer": buyer,
         "shipping_address": shipping_address,
         "items": items,
@@ -471,6 +727,9 @@ def resultado():
     if request.method == "OPTIONS":
         return ("", 200)
 
+    if request_rate_limited("checkout-resultado"):
+        return make_error("Demasiadas solicitudes", 429)
+
     params = request.args.to_dict()
     tx_id = params.get("id") or params.get("transaction_id") or params.get("transaction-id")
     reconcile = None
@@ -478,9 +737,11 @@ def resultado():
         reconcile, _ = procesar_transaccion_confirmada(tx_id, source="redirect")
 
     return jsonify({
-        "message": "El usuario volvió del Checkout Web",
-        "params": params,
-        "sync": reconcile
+        "ok": True,
+        "message": "Resultado de checkout procesado",
+        "transaction_id": tx_id,
+        "sync": reconcile,
+        "ui": build_checkout_result_ui(reconcile)
     }), 200
 
 
@@ -489,7 +750,18 @@ def webhook():
     if request.method == "OPTIONS":
         return ("", 200)
 
+    if request_rate_limited("webhook"):
+        return make_error("Demasiadas solicitudes", 429)
+
+    raw_payload = request.get_data(cache=True)
+    if not verify_webhook_signature(raw_payload):
+        logger.warning("Intento de webhook con firma invalida")
+        return make_error("Firma de webhook invalida", 401)
+
     evento = request.get_json(silent=True) or {}
+    if not isinstance(evento, dict):
+        return make_error("Payload invalido", 400)
+
     logger.info("Webhook recibido")
 
     tx_from_event = (evento.get("data") or {}).get("transaction") or {}

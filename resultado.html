@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Resultado de pago - Universo Mercantil.">
+    <link rel="stylesheet" href="./styles/styles.css">
+    <title>Resultado de Pago - Universo Mercantil</title>
+</head>
+<body>
+    <header id="header"></header>
+
+    <main class="checkout-result-page">
+        <section class="checkout-result-intro">
+            <p class="catalogo-breadcrumb"><a href="/principal.html">Inicio</a> / Resultado de pago</p>
+            <h1>Confirmacion de pago</h1>
+            <div class="decorative-line"></div>
+            <p class="catalogo-descripcion">Estamos validando la transaccion de tu pedido.</p>
+        </section>
+
+        <section class="checkout-result-shell">
+            <article id="checkout-result-card" class="checkout-result-card checkout-result--info" aria-live="polite">
+                <p id="checkout-result-sync" class="checkout-result-sync">Estado de sincronizacion: procesando</p>
+                <h2 id="checkout-result-title">Estamos procesando tu pago</h2>
+                <p id="checkout-result-subtitle">Tu proceso de checkout fue recibido. Esto puede tardar unos segundos.</p>
+
+                <dl class="checkout-result-grid">
+                    <dt>ID de transaccion</dt>
+                    <dd id="checkout-result-transaction">N/A</dd>
+                    <dt>Detalle</dt>
+                    <dd id="checkout-result-detail">Sin detalle adicional</dd>
+                </dl>
+
+                <div class="checkout-result-actions">
+                    <a class="checkout-result-btn checkout-result-btn-primary" href="/principal.html">Volver al inicio</a>
+                    <a class="checkout-result-btn checkout-result-btn-secondary" href="/carrito.html">Volver al carrito</a>
+                    <a id="checkout-result-whatsapp" class="checkout-result-btn checkout-result-btn-secondary" href="#" target="_blank" rel="noopener noreferrer" hidden>Contactar por WhatsApp</a>
+                    <button id="checkout-result-retry" type="button" class="checkout-result-btn checkout-result-btn-secondary" hidden>Reintentar</button>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <footer id="footer"></footer>
+
+    <script src="./scripts/loadComponents.js"></script>
+    <script src="./scripts/uiFeedback.js"></script>
+    <script src="./scripts/checkoutResultado.js"></script>
+</body>
+</html>

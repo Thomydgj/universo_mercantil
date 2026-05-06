@@ -39,10 +39,15 @@
                     </div>
 
                     <div class="selector-variante-wrap" hidden>
-                        <p class="selector-variante-titulo">Variante:</p>
-                        <div class="variantes-chips" role="radiogroup" aria-label="Variantes del producto"></div>
-                        <label for="variante" class="selector-variante-label" hidden>Selecciona una variante</label>
-                        <select id="variante" class="selector-variante" hidden></select>
+                        <p class="selector-variante-titulo">Variantes:</p>
+                        <div class="selector-variante-grupo selector-tamano-grupo" hidden>
+                            <label for="variante-tamano" class="selector-variante-label selector-tamano-label">Tamano</label>
+                            <select id="variante-tamano" class="selector-variante selector-tamano"></select>
+                        </div>
+                        <div class="selector-variante-grupo selector-color-grupo" hidden>
+                            <label for="variante-color" class="selector-variante-label selector-color-label">Color</label>
+                            <select id="variante-color" class="selector-variante selector-color"></select>
+                        </div>
                         <p class="selector-variante-ayuda" hidden></p>
                     </div>
 

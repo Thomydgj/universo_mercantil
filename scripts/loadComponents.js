@@ -68,7 +68,7 @@
               <circle cx="18" cy="20" r="1.7"/>
               <path d="M2.5 3h2l2.1 11h11.2l2-8H6"/>
             </svg>
-            <span class="sr-only">Carrito</span>
+            <span class="nav-label">Carrito</span>
           </a>
         </li>
       </ul>
@@ -114,7 +114,13 @@
   function initHeaderInteractions() {
     const toggle = document.querySelector(".menu-toggle");
     const nav = document.querySelector(".nav-bar");
+    const headerShell = document.querySelector(".header-shell");
     if (!toggle || !nav) return;
+
+    const closeMenu = () => {
+      nav.classList.remove("open");
+      toggle.setAttribute("aria-expanded", "false");
+    };
 
     toggle.addEventListener("click", () => {
       const isOpen = nav.classList.toggle("open");
@@ -123,9 +129,26 @@
 
     nav.querySelectorAll("a").forEach(link => {
       link.addEventListener("click", () => {
-        nav.classList.remove("open");
-        toggle.setAttribute("aria-expanded", "false");
+        closeMenu();
       });
+    });
+
+    document.addEventListener("click", event => {
+      if (!nav.classList.contains("open")) return;
+      if (headerShell && headerShell.contains(event.target)) return;
+      closeMenu();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 1024) {
+        closeMenu();
+      }
     });
   }
 

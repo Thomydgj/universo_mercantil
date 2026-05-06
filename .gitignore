@@ -17,6 +17,7 @@ backend/.env
 backend/.env.*
 !.env.example
 !backend/.env.example
+backend/orders_store.json
 
 # Build/test caches
 .pytest_cache/

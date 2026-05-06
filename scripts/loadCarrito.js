@@ -22,6 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderCarrito() {
     contenedor.innerHTML = "";
+    const itemsScroll = document.createElement("div");
+    itemsScroll.classList.add("carrito-items-scroll");
 
     carrito.forEach(prod => {
       const itemKey = prod.cartKey || (prod.varianteId ? `${prod.id}::${prod.varianteId}` : prod.id);
@@ -75,8 +77,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
 
-      contenedor.appendChild(clone);
+      itemsScroll.appendChild(clone);
     });
+
+    contenedor.appendChild(itemsScroll);
 
     // Bloque total
     if (carrito.length > 0) {
@@ -94,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Si el carrito está vacío
       const vacio = document.createElement("p");
       vacio.textContent = "Tu carrito está vacío.";
-      contenedor.appendChild(vacio);
+      itemsScroll.appendChild(vacio);
     }
   }
 

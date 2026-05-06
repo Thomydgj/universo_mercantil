@@ -7,7 +7,8 @@ E-commerce estatico (HTML/CSS/JS) con backend Flask para generar links de pago W
 - Frontend: paginas estaticas y scripts vanilla en `scripts/`.
 - Backend: API Flask en `backend/app.py`.
 - Persistencia: PostgreSQL cuando `DATABASE_URL` esta definido; fallback a JSON local (`backend/orders_store.json`) si no esta definido.
-- Pago: Wompi Payment Links + webhook + reconciliacion por redirect.
+- Pago: Wompi Payment Links + webhook + reconciliacion por redirect (UI en `resultado.html`).
+- Seguridad backend: validacion de firma webhook, rate limit por IP, validacion de payload y headers de seguridad.
 
 ## Requisitos
 
@@ -15,6 +16,27 @@ E-commerce estatico (HTML/CSS/JS) con backend Flask para generar links de pago W
 - Dependencias en `requirements.txt`
 - Credenciales Wompi sandbox/produccion
 - Credenciales SMTP para notificacion
+
+## Optimizacion de Imagenes
+
+Para optimizar imagenes sin cambiar nombre ni ubicacion de archivos (evita romper enlaces), usa:
+
+```bash
+python scripts/optimize_images.py --root assets/images --dry-run --verbose
+```
+
+Cuando estes conforme con el reporte, ejecuta en modo escritura:
+
+```bash
+python scripts/optimize_images.py --root assets/images --verbose
+```
+
+Opciones utiles:
+
+- `--quality-jpeg 82`
+- `--quality-webp 80`
+- `--png-colors 256`
+- `--keep-larger` (fuerza reemplazo aunque el resultado pese mas)
 
 ## Configuracion Local
 
@@ -51,13 +73,21 @@ Variables principales usadas por `backend/app.py`:
 - `WOMPI_PUBLIC_KEY`
 - `WOMPI_PRIVATE_KEY`
 - `WOMPI_INTEGRITY_SECRET`
+- `WOMPI_WEBHOOK_SECRET`
 - `WOMPI_URL`
 - `BACKEND_BASE_URL`
+- `FRONTEND_BASE_URL`
+- `SALES_WHATSAPP_NUMBER`
 - `DATABASE_URL`
 - `ALLOWED_ORIGINS`
 - `FLASK_DEBUG`
 - `PORT`
 - `LOG_LEVEL`
+- `BACKEND_API_KEY`
+- `MIN_ORDER_AMOUNT_IN_CENTS`
+- `MAX_ORDER_AMOUNT_IN_CENTS`
+- `RATE_LIMIT_WINDOW_SECONDS`
+- `RATE_LIMIT_MAX_REQUESTS`
 - `SMTP_HOST`
 - `SMTP_PORT`
 - `SMTP_USER`
@@ -76,6 +106,7 @@ Ejemplo:
 <script>
 	window.UNIVERSO_CONFIG = {
 		backendBaseUrl: "https://api.tudominio.com",
+		apiKey: "optional_api_key_if_enabled",
 		whatsapp: "573001234567",
 		phoneDisplay: "+57 300 123 4567",
 		phoneDial: "+573001234567"
@@ -90,7 +121,14 @@ Si no se define, se usan valores por defecto para entorno local.
 - `POST /checkout`: crea payment link en Wompi.
 - `POST /order/create-for-payment`: crea pedido en estado `pending_payment` para pago directo.
 - `POST /webhook`: procesa eventos de Wompi.
-- `GET /checkout/resultado`: reconciliacion al volver del checkout.
+- `GET /checkout/resultado`: reconciliacion al volver del checkout y respuesta JSON para consumo de frontend.
+- `GET /health`: estado operativo basico del backend.
+
+### Flujo de resultado de pago
+
+- Wompi redirige al usuario a `resultado.html` (frontend).
+- `scripts/checkoutResultado.js` consulta `GET /checkout/resultado` para reconciliar y pintar estado.
+- El backend no renderiza HTML para este flujo; entrega estado y metadatos de UI en JSON.
 
 ## Base de Datos (PostgreSQL)
 
@@ -117,9 +155,11 @@ El script toma datos de `backend/orders_store.json` y los inserta en las tablas 
 - `FLASK_DEBUG=false`
 - `ALLOWED_ORIGINS` restringido a dominios reales
 - llaves Wompi de produccion (no sandbox)
+- `WOMPI_WEBHOOK_SECRET` configurado para verificar firma de webhook
 - `backend/.env` fuera del control de versiones
 - HTTPS activo en frontend y backend
 - monitoreo de logs de webhook y notificaciones
+- `BACKEND_API_KEY` configurado si quieres endurecer acceso de frontends permitidos
 
 ## Playbook de Secretos (Obligatorio)
 

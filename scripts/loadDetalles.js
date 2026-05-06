@@ -4,6 +4,8 @@ const template = document.getElementById("template-detalle");
 const detalleBreadcrumb = document.getElementById("detalle-breadcrumb");
 const detalleTitulo = document.getElementById("detalle-titulo");
 const detalleSubtitulo = document.getElementById("detalle-subtitulo");
+const runtimeConfig = window.UNIVERSO_CONFIG || {};
+const whatsappNumber = runtimeConfig.whatsapp || "573001234567";
 const notify = (message, type) => {
   if (typeof window.showToast === "function") {
     window.showToast(message, type);
@@ -33,16 +35,37 @@ if (producto) {
   const card = template.content.cloneNode(true);
 
   const variantes = Array.isArray(producto.variantes) ? producto.variantes : [];
+  const limpiarTexto = valor => String(valor || "").trim();
   const variantesNormalizadas = variantes
-    .filter(variante => variante && (variante.nombre || variante.id || variante.color))
-    .map((variante, index) => ({
-      ...variante,
-      key: variante.id || `variante-${index + 1}`,
-      etiqueta: variante.color ? `${variante.nombre || `Variante ${index + 1}`} - Color ${variante.color}` : (variante.nombre || `Variante ${index + 1}`)
-    }));
+    .filter(variante => variante && (variante.nombre || variante.id || variante.color || variante.tamano || variante.talla))
+    .map((variante, index) => {
+      const nombre = limpiarTexto(variante.nombre) || `Variante ${index + 1}`;
+      const tamano = limpiarTexto(variante.tamano || variante.talla) || nombre;
+      const color = limpiarTexto(variante.color);
+      const partesEtiqueta = [];
+
+      if (tamano) partesEtiqueta.push(`Tamano ${tamano}`);
+      if (color) partesEtiqueta.push(`Color ${color}`);
+
+      return {
+        ...variante,
+        key: variante.id || `variante-${index + 1}`,
+        tamano,
+        color,
+        etiqueta: partesEtiqueta.join(" - ") || nombre,
+        nombre
+      };
+    });
+
+  const obtenerValoresUnicos = valores => valores.filter((valor, indice, arr) => arr.indexOf(valor) === indice);
   const tieneVariantes = variantesNormalizadas.length > 0;
-  const MAX_VARIANTES_CHIPS = 7;
-  let varianteActivaKey = tieneVariantes ? variantesNormalizadas[0].key : null;
+  const tamanosDisponibles = obtenerValoresUnicos(variantesNormalizadas.map(variante => variante.tamano).filter(Boolean));
+  const coloresDisponibles = obtenerValoresUnicos(variantesNormalizadas.map(variante => variante.color).filter(Boolean));
+  const tieneSelectorTamano = tamanosDisponibles.length > 0;
+  const tieneSelectorColor = coloresDisponibles.length > 0;
+  const tieneSelectoresDeVariante = tieneSelectorTamano || tieneSelectorColor;
+  let tamanoActivo = tieneSelectorTamano ? (variantesNormalizadas[0]?.tamano || tamanosDisponibles[0] || null) : null;
+  let colorActivo = tieneSelectorColor ? (variantesNormalizadas[0]?.color || coloresDisponibles[0] || null) : null;
 
   // Rellena nombre, descripción y precio
   card.querySelector(".nombre-producto").textContent = producto.nombre;
@@ -78,61 +101,91 @@ if (producto) {
   document.title = `${producto.nombre} - Universo Mercantil`;
 
   const varianteWrap = card.querySelector(".selector-variante-wrap");
-  const chipsVariantes = card.querySelector(".variantes-chips");
-  const etiquetaSelectVariante = card.querySelector(".selector-variante-label");
-  const selectVariante = card.querySelector(".selector-variante");
+  const grupoTamano = card.querySelector(".selector-tamano-grupo");
+  const grupoColor = card.querySelector(".selector-color-grupo");
+  const selectTamano = card.querySelector(".selector-tamano");
+  const selectColor = card.querySelector(".selector-color");
   const ayudaVariantes = card.querySelector(".selector-variante-ayuda");
 
-  if (tieneVariantes && varianteWrap && chipsVariantes && etiquetaSelectVariante && selectVariante && ayudaVariantes) {
+  if (tieneVariantes && tieneSelectoresDeVariante && varianteWrap && grupoTamano && grupoColor && selectTamano && selectColor && ayudaVariantes) {
     varianteWrap.hidden = false;
+    grupoTamano.hidden = !tieneSelectorTamano;
+    grupoColor.hidden = !tieneSelectorColor;
+    ayudaVariantes.hidden = false;
+    ayudaVariantes.textContent = "Selecciona tamano y color de forma independiente.";
 
-    const usarChips = variantesNormalizadas.length <= MAX_VARIANTES_CHIPS;
+    if (tieneSelectorTamano) {
+      poblarSelect(selectTamano, tamanosDisponibles, tamanoActivo);
+      tamanoActivo = selectTamano.value || tamanoActivo;
+    }
 
-    if (usarChips) {
-      etiquetaSelectVariante.hidden = true;
-      selectVariante.hidden = true;
-      ayudaVariantes.hidden = true;
+    if (tieneSelectorColor) {
+      poblarSelect(selectColor, coloresDisponibles, colorActivo);
+      colorActivo = selectColor.value || colorActivo;
+    }
+  }
 
-      variantesNormalizadas.forEach((variante, index) => {
-        const botonVariante = document.createElement("button");
-        botonVariante.type = "button";
-        botonVariante.className = "variante-chip";
-        botonVariante.dataset.varianteKey = variante.key;
-        botonVariante.textContent = variante.etiqueta;
-        botonVariante.setAttribute("role", "radio");
-        chipsVariantes.appendChild(botonVariante);
-      });
-    } else {
-      chipsVariantes.hidden = true;
-      etiquetaSelectVariante.hidden = false;
-      selectVariante.hidden = false;
-      ayudaVariantes.hidden = false;
-      ayudaVariantes.textContent = "Este producto tiene muchas variantes. Usa la lista para encontrar rapido la opcion que necesitas.";
+  function poblarSelect(select, opciones, valorActivo) {
+    if (!select) return;
 
-      variantesNormalizadas.forEach((variante, index) => {
-        const option = document.createElement("option");
-        option.value = variante.key;
-        option.textContent = variante.etiqueta;
-        selectVariante.appendChild(option);
-      });
+    select.innerHTML = "";
+    opciones.forEach(opcion => {
+      const option = document.createElement("option");
+      option.value = opcion;
+      option.textContent = opcion;
+      select.appendChild(option);
+    });
 
-      selectVariante.value = varianteActivaKey;
+    if (valorActivo && opciones.includes(valorActivo)) {
+      select.value = valorActivo;
+    } else if (opciones.length) {
+      select.value = opciones[0];
     }
   }
 
   function obtenerVarianteSeleccionada() {
     if (!tieneVariantes) return null;
-    return variantesNormalizadas.find(v => v.key === varianteActivaKey) || variantesNormalizadas[0] || null;
+
+    if (tamanoActivo && colorActivo) {
+      const varianteExacta = variantesNormalizadas.find(
+        variante => variante.tamano === tamanoActivo && variante.color === colorActivo
+      );
+      if (varianteExacta) return varianteExacta;
+    }
+
+    if (tamanoActivo) {
+      const variantePorTamano = variantesNormalizadas.find(variante => variante.tamano === tamanoActivo);
+      if (variantePorTamano) {
+        return variantePorTamano;
+      }
+    }
+
+    if (colorActivo) {
+      const variantePorColor = variantesNormalizadas.find(variante => variante.color === colorActivo);
+      if (variantePorColor) {
+        return variantePorColor;
+      }
+    }
+
+    return variantesNormalizadas[0] || null;
   }
 
-  function actualizarEstadoVisualVariantes() {
-    if (!chipsVariantes || chipsVariantes.hidden) return;
-    const chips = chipsVariantes.querySelectorAll(".variante-chip");
-    chips.forEach(chip => {
-      const activa = chip.dataset.varianteKey === varianteActivaKey;
-      chip.classList.toggle("is-active", activa);
-      chip.setAttribute("aria-checked", activa ? "true" : "false");
-    });
+  function obtenerEtiquetaSeleccionActiva(variante) {
+    const partes = [];
+
+    if (tieneSelectorTamano && tamanoActivo) {
+      partes.push(`Tamano ${tamanoActivo}`);
+    } else if (variante?.tamano) {
+      partes.push(`Tamano ${variante.tamano}`);
+    }
+
+    if (tieneSelectorColor && colorActivo) {
+      partes.push(`Color ${colorActivo}`);
+    } else if (variante?.color) {
+      partes.push(`Color ${variante.color}`);
+    }
+
+    return partes.join(" - ");
   }
 
   function obtenerImagenesActivas(variante) {
@@ -155,13 +208,16 @@ if (producto) {
     precioNodo.textContent = `$${precio.toLocaleString("es-CO")}`;
     referenciaNodo.textContent = `Ref: ${refBase}${refVariante}`;
 
-    const etiquetaVariante = variante?.etiqueta ? ` - ${variante.etiqueta}` : "";
+    const etiquetaSeleccion = obtenerEtiquetaSeleccionActiva(variante);
+    const etiquetaVariante = etiquetaSeleccion
+      ? ` - ${etiquetaSeleccion}`
+      : (variante?.etiqueta ? ` - ${variante.etiqueta}` : "");
     const textoWhatsApp = encodeURIComponent(
       `Hola, quiero informacion sobre ${producto.nombre}${etiquetaVariante} (ref: ${producto.id}).`
     );
 
     if (btnWhatsApp) {
-      btnWhatsApp.href = `https://wa.me/?text=${textoWhatsApp}`;
+      btnWhatsApp.href = `https://wa.me/${whatsappNumber}?text=${textoWhatsApp}`;
     }
   }
 
@@ -230,28 +286,24 @@ if (producto) {
 
   const varianteInicial = obtenerVarianteSeleccionada();
   actualizarInformacionProducto(varianteInicial);
-  actualizarEstadoVisualVariantes();
-  renderizarCarousel(obtenerImagenesActivas(varianteInicial), producto.nombre);
+  renderizarCarousel(obtenerImagenesActivas(varianteInicial), `${producto.nombre} ${obtenerEtiquetaSeleccionActiva(varianteInicial) || varianteInicial?.etiqueta || ""}`.trim());
 
   function aplicarVarianteSeleccionada() {
     const varianteActiva = obtenerVarianteSeleccionada();
     actualizarInformacionProducto(varianteActiva);
-    actualizarEstadoVisualVariantes();
-    renderizarCarousel(obtenerImagenesActivas(varianteActiva), `${producto.nombre} ${varianteActiva?.nombre || ""}`.trim());
+    renderizarCarousel(obtenerImagenesActivas(varianteActiva), `${producto.nombre} ${obtenerEtiquetaSeleccionActiva(varianteActiva) || varianteActiva?.etiqueta || ""}`.trim());
   }
 
-  if (tieneVariantes && chipsVariantes && !chipsVariantes.hidden) {
-    chipsVariantes.addEventListener("click", event => {
-      const boton = event.target.closest(".variante-chip");
-      if (!boton) return;
-      varianteActivaKey = boton.dataset.varianteKey;
+  if (tieneVariantes && tieneSelectorTamano && selectTamano) {
+    selectTamano.addEventListener("change", () => {
+      tamanoActivo = selectTamano.value;
       aplicarVarianteSeleccionada();
     });
   }
 
-  if (tieneVariantes && selectVariante && !selectVariante.hidden) {
-    selectVariante.addEventListener("change", () => {
-      varianteActivaKey = selectVariante.value;
+  if (tieneVariantes && tieneSelectorColor && selectColor) {
+    selectColor.addEventListener("change", () => {
+      colorActivo = selectColor.value;
       aplicarVarianteSeleccionada();
     });
   }
@@ -266,7 +318,29 @@ if (producto) {
 
     const varianteActiva = obtenerVarianteSeleccionada();
     const imagenesActivas = obtenerImagenesActivas(varianteActiva);
-    const cartKey = varianteActiva?.key ? `${producto.id}::${varianteActiva.key}` : producto.id;
+    const tamanoSeleccionado = (tieneSelectorTamano ? tamanoActivo : varianteActiva?.tamano) || null;
+    const colorSeleccionado = (tieneSelectorColor ? colorActivo : varianteActiva?.color) || null;
+    const normalizarParteKey = valor => String(valor || "").toLowerCase().trim().replace(/\s+/g, "-");
+    const partesKey = [producto.id];
+
+    if (tamanoSeleccionado) {
+      partesKey.push(`tamano=${normalizarParteKey(tamanoSeleccionado)}`);
+    }
+
+    if (colorSeleccionado) {
+      partesKey.push(`color=${normalizarParteKey(colorSeleccionado)}`);
+    }
+
+    const cartKey = partesKey.join("::");
+    const detalleVariante = [];
+
+    if (tamanoSeleccionado) {
+      detalleVariante.push(`Tamano: ${tamanoSeleccionado}`);
+    }
+
+    if (colorSeleccionado) {
+      detalleVariante.push(`Color: ${colorSeleccionado}`);
+    }
 
     const productoCarrito = {
       cartKey,
@@ -275,8 +349,8 @@ if (producto) {
       precio: Number(varianteActiva?.precio ?? producto.precio),
       cantidad,
       imagen: imagenesActivas[0] || "",
-      varianteId: varianteActiva?.key || null,
-      varianteNombre: varianteActiva?.nombre || null
+      varianteId: [tamanoSeleccionado, colorSeleccionado].filter(Boolean).join("|") || varianteActiva?.key || null,
+      varianteNombre: detalleVariante.length ? detalleVariante.join(" | ") : (varianteActiva?.etiqueta || null)
     };
 
     let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
