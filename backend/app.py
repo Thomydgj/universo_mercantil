@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import html
 import json
 import logging
 import os
@@ -79,6 +80,9 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER or "no-reply@universomercantil.com")
 FACTURACION_EMAIL_TO = os.getenv("FACTURACION_EMAIL_TO")
 FACTURACION_EMAIL_CC = os.getenv("FACTURACION_EMAIL_CC", "")
+COMPANY_NAME = os.getenv("COMPANY_NAME", "Universo Mercantil")
+EMAIL_LOGO_URL = (os.getenv("EMAIL_LOGO_URL") or "").strip()
+SUPPORT_EMAIL = (os.getenv("SUPPORT_EMAIL") or SMTP_FROM or "").strip()
 
 STORE_PATH = Path(__file__).resolve().parent / "orders_store.json"
 _request_window: dict[str, list[float]] = {}
@@ -109,6 +113,45 @@ def generate_reference() -> str:
 
 def validate_email(value: str) -> bool:
     return bool(EMAIL_RE.match((value or "").strip()))
+
+
+def format_currency(amount: int | float, currency: str = "COP") -> str:
+    return f"{amount:,.0f} {currency}".replace(",", ".")
+
+
+def escape_html(value) -> str:
+    return html.escape(str(value or ""), quote=True)
+
+
+def normalize_public_url(raw_value: str) -> str:
+    value = (raw_value or "").strip()
+    if not value:
+        return ""
+
+    if value.startswith(("http://", "https://")):
+        return value
+
+    if value.startswith("//"):
+        return f"https:{value}"
+
+    if value.startswith("/"):
+        return f"{FRONTEND_BASE_URL}{value}"
+
+    return f"{FRONTEND_BASE_URL}/{value}"
+
+
+def compact_address(shipping: dict) -> str:
+    if not shipping:
+        return "N/A"
+
+    parts = [
+        shipping.get("direccion"),
+        shipping.get("detalle_direccion"),
+        shipping.get("ciudad"),
+        shipping.get("departamento"),
+    ]
+    cleaned = [str(part).strip() for part in parts if str(part or "").strip()]
+    return ", ".join(cleaned) if cleaned else "N/A"
 
 
 def request_rate_limited(scope: str) -> bool:
@@ -203,6 +246,8 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
 
         subtotal = quantity * price
         items_total += subtotal
+        image_value = (item.get("imagen") or item.get("imagen_url") or "").strip()
+        product_url_value = (item.get("product_url") or item.get("url") or "").strip()
 
         normalized_items.append({
             "id": item.get("id"),
@@ -213,6 +258,8 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
             "cantidad": quantity,
             "precio": price,
             "subtotal": subtotal,
+            "imagen": image_value,
+            "product_url": product_url_value,
         })
 
     shipping_cost = max(0, parse_int(data.get("shipping_cost"), 0))
@@ -409,7 +456,7 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
     if order.get("email_notified"):
         return {"status": "ok", "message": "already_notified"}, 200
 
-    sent, detail = enviar_correo_facturacion(order, tx)
+    sent, detail = enviar_correos_compra_aprobada(order, tx)
 
     upsert_order(matched_reference, {
         "email_notified": bool(sent),
@@ -425,14 +472,15 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
     return {"status": "ok", "message": "email_sent"}, 200
 
 
-def build_email_content(order: dict, transaction: dict) -> tuple[str, str]:
+def build_order_email_context(order: dict, transaction: dict) -> dict:
     reference = order.get("reference", "sin_referencia")
     amount_in_cents = int(order.get("amount_in_cents") or (transaction or {}).get("amount_in_cents") or 0)
-    amount = amount_in_cents / 100
+    total_amount = int(round(amount_in_cents / 100))
     currency = order.get("currency", (transaction or {}).get("currency") or "COP")
     payment_method = (order.get("payment_method") or (transaction or {}).get("payment_method_type") or "N/A").upper()
     delivery_type = (order.get("delivery_type") or "shipping").lower()
     shipping_cost = int(order.get("shipping_cost") or 0)
+    subtotal = int(order.get("subtotal") or max(total_amount - shipping_cost, 0))
     shipping_zone = order.get("shipping_zone") or "N/A"
 
     tx_customer = (transaction or {}).get("customer_data") or {}
@@ -448,85 +496,379 @@ def build_email_content(order: dict, transaction: dict) -> tuple[str, str]:
         "telefono": tx_customer.get("phone_number") or "",
         "email": (transaction or {}).get("customer_email") or "",
     }
+
+    buyer_full_name = " ".join(
+        part for part in [buyer.get("nombre"), buyer.get("apellidos")] if str(part or "").strip()
+    ).strip() or "Cliente"
+    buyer_email = (buyer.get("email") or order.get("customer_email") or (transaction or {}).get("customer_email") or "").strip()
+
     shipping = order.get("shipping_address") or ((transaction or {}).get("shipping_address") or {})
-    items = order.get("items") or []
+    raw_items = order.get("items") or []
 
-    tx_id = (transaction or {}).get("id", "N/A")
-    tx_status = (transaction or {}).get("status") or (order.get("status") or "N/A")
+    items = []
+    for index, item in enumerate(raw_items, start=1):
+        if not isinstance(item, dict):
+            continue
 
-    lines = [
-        f"Nueva compra verificada por Wompi ({tx_status}).",
-        "",
-        "=== Resumen de pago ===",
-        f"Referencia: {reference}",
-        f"Transaccion Wompi: {tx_id}",
-        f"Metodo: {payment_method}",
-        f"Tipo de entrega: {'Recoger en tienda' if delivery_type == 'pickup' else 'Enviar a domicilio'}",
-        f"Zona de envio: {shipping_zone}",
-        f"Costo de envio: {shipping_cost:,.0f} {currency}".replace(",", "."),
-        f"Total: {amount:,.0f} {currency}".replace(",", "."),
-        "",
-        "=== Datos del comprador ===",
-        f"Nombre: {buyer.get('nombre', '')} {buyer.get('apellidos', '')}".strip() or "Nombre: N/A",
-        f"No. Documento: {buyer.get('numero_documento') or tx_billing.get('legal_id') or 'N/A'}",
-        f"Telefono: {buyer.get('telefono', 'N/A')}",
-        f"Email: {buyer.get('email', order.get('customer_email', 'N/A'))}",
-        "",
-    ]
+        quantity = max(1, parse_int(item.get("cantidad"), 1))
+        price = max(0, parse_int(item.get("precio"), 0))
+        item_subtotal = max(0, parse_int(item.get("subtotal"), quantity * price))
+        product_id = str(item.get("id") or "").strip()
+        product_link_raw = (item.get("product_url") or "").strip()
+        if not product_link_raw and product_id:
+            product_link_raw = f"/detalles.html?id={product_id}"
 
-    if delivery_type == "pickup":
-        lines.extend([
-            "=== Entrega en tienda ===",
-            order.get("pickup_message") or "Tu pedido estara disponible para entrega en tienda en 5 horas habiles.",
-            ""
-        ])
-    else:
-        lines.extend([
-            "=== Direccion de envio ===",
-            f"Departamento: {shipping.get('departamento', 'N/A')}",
-            f"Ciudad: {shipping.get('ciudad', 'N/A')}",
-            f"Direccion: {shipping.get('direccion', 'N/A')}",
-            f"Detalle: {shipping.get('detalle_direccion', 'N/A') or 'N/A'}",
-            ""
-        ])
+        items.append({
+            "line": index,
+            "id": product_id,
+            "nombre": (item.get("nombre") or "Producto").strip(),
+            "variante_nombre": (item.get("variante_nombre") or "").strip(),
+            "cantidad": quantity,
+            "precio": price,
+            "subtotal": item_subtotal,
+            "imagen_url": normalize_public_url(item.get("imagen") or item.get("imagen_url") or ""),
+            "product_url": normalize_public_url(product_link_raw),
+        })
 
-    lines.extend([
-        "=== Productos comprados ===",
-    ])
+    tx_id = (transaction or {}).get("id") or "N/A"
+    tx_status = ((transaction or {}).get("status") or (order.get("status") or "N/A")).upper()
 
+    return {
+        "reference": reference,
+        "currency": currency,
+        "payment_method": payment_method,
+        "delivery_type": delivery_type,
+        "shipping_cost": shipping_cost,
+        "shipping_zone": shipping_zone,
+        "subtotal": subtotal,
+        "total": total_amount,
+        "buyer": buyer,
+        "buyer_full_name": buyer_full_name,
+        "buyer_email": buyer_email,
+        "shipping": shipping,
+        "shipping_summary": compact_address(shipping),
+        "pickup_message": order.get("pickup_message") or "Tu pedido estara disponible para entrega en tienda en 5 horas habiles.",
+        "items": items,
+        "tx_id": tx_id,
+        "tx_status": tx_status,
+    }
+
+
+def build_html_kv_table(rows: list[tuple[str, str]]) -> str:
+    table_rows = []
+    for label, value in rows:
+        table_rows.append(
+            "<tr>"
+            f"<td style='padding:8px 10px;border:1px solid #e7edf4;background:#f7fafc;color:#3b4b5d;font-size:13px;font-weight:600;width:38%;'>{escape_html(label)}</td>"
+            f"<td style='padding:8px 10px;border:1px solid #e7edf4;color:#152333;font-size:13px;'>{escape_html(value)}</td>"
+            "</tr>"
+        )
+
+    return (
+        "<table role='presentation' cellpadding='0' cellspacing='0' width='100%' "
+        "style='border-collapse:collapse;border:1px solid #e7edf4;border-radius:10px;overflow:hidden;'>"
+        + "".join(table_rows)
+        + "</table>"
+    )
+
+
+def build_items_html(items: list[dict], currency: str, *, include_product_links: bool) -> str:
     if not items:
-        lines.append("(Sin detalle de productos en payload)")
-    else:
-        for idx, item in enumerate(items, start=1):
-            nombre = item.get("nombre", "Producto")
-            cantidad = item.get("cantidad", 1)
-            precio = int(item.get("precio") or 0)
-            subtotal = int(item.get("subtotal") or precio * cantidad)
-            lines.append(
-                f"{idx}. {nombre} | Cantidad: {cantidad} | Precio: {precio:,.0f} | Subtotal: {subtotal:,.0f}".replace(",", ".")
+        return "<p style='margin:0;color:#5d6b7a;font-size:13px;'>No se recibio detalle de productos para este pedido.</p>"
+
+    rows = []
+    for item in items:
+        image_html = (
+            f"<img src='{escape_html(item.get('imagen_url'))}' alt='{escape_html(item.get('nombre'))}' "
+            "style='display:block;width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid #e7edf4;'>"
+            if item.get("imagen_url")
+            else "<div style='width:72px;height:72px;line-height:72px;text-align:center;border-radius:10px;border:1px dashed #ced8e3;color:#6d7c8b;font-size:12px;'>Sin imagen</div>"
+        )
+
+        variant_html = (
+            f"<div style='margin-top:4px;color:#607285;font-size:12px;'>Variante: {escape_html(item.get('variante_nombre'))}</div>"
+            if item.get("variante_nombre")
+            else ""
+        )
+
+        link_html = ""
+        if include_product_links and item.get("product_url"):
+            link_html = (
+                f"<div style='margin-top:6px;'><a href='{escape_html(item.get('product_url'))}' "
+                "style='color:#0b4d93;text-decoration:none;font-size:12px;font-weight:600;'>Ver producto</a></div>"
             )
 
+        rows.append(
+            "<tr>"
+            f"<td style='padding:10px;border-bottom:1px solid #edf2f7;width:86px;vertical-align:top;'>{image_html}</td>"
+            "<td style='padding:10px;border-bottom:1px solid #edf2f7;vertical-align:top;'>"
+            f"<div style='font-size:14px;font-weight:700;color:#1a2b3d;'>{escape_html(item.get('nombre'))}</div>"
+            f"{variant_html}{link_html}"
+            "</td>"
+            f"<td style='padding:10px;border-bottom:1px solid #edf2f7;color:#3b4b5d;font-size:13px;text-align:center;vertical-align:top;width:54px;'>{item.get('cantidad')}</td>"
+            f"<td style='padding:10px;border-bottom:1px solid #edf2f7;color:#3b4b5d;font-size:13px;text-align:right;vertical-align:top;width:100px;'>{escape_html(format_currency(item.get('precio', 0), currency))}</td>"
+            f"<td style='padding:10px;border-bottom:1px solid #edf2f7;color:#1a2b3d;font-size:13px;text-align:right;font-weight:700;vertical-align:top;width:116px;'>{escape_html(format_currency(item.get('subtotal', 0), currency))}</td>"
+            "</tr>"
+        )
+
+    return (
+        "<table role='presentation' cellpadding='0' cellspacing='0' width='100%' style='border-collapse:collapse;'>"
+        "<thead>"
+        "<tr>"
+        "<th style='padding:10px;color:#5b6d80;text-align:left;font-size:11px;text-transform:uppercase;'>Imagen</th>"
+        "<th style='padding:10px;color:#5b6d80;text-align:left;font-size:11px;text-transform:uppercase;'>Producto</th>"
+        "<th style='padding:10px;color:#5b6d80;text-align:center;font-size:11px;text-transform:uppercase;'>Cant.</th>"
+        "<th style='padding:10px;color:#5b6d80;text-align:right;font-size:11px;text-transform:uppercase;'>Precio</th>"
+        "<th style='padding:10px;color:#5b6d80;text-align:right;font-size:11px;text-transform:uppercase;'>Subtotal</th>"
+        "</tr>"
+        "</thead>"
+        "<tbody>"
+        + "".join(rows)
+        + "</tbody></table>"
+    )
+
+
+def wrap_email_html(title: str, subtitle: str, content_html: str) -> str:
+    logo_url = normalize_public_url(EMAIL_LOGO_URL) or normalize_public_url("assets/logo.png")
+    logo_html = ""
+    if logo_url:
+        logo_html = (
+            f"<img src='{escape_html(logo_url)}' alt='{escape_html(COMPANY_NAME)}' "
+            "style='height:40px;max-width:180px;object-fit:contain;display:block;margin:0 auto 14px auto;'>"
+        )
+
+    footer_support = f"<strong>{escape_html(SUPPORT_EMAIL)}</strong>" if SUPPORT_EMAIL else "nuestro canal comercial"
+
+    return f"""
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{escape_html(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#142233;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:20px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="max-width:680px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e7edf4;">
+          <tr>
+            <td style="padding:22px 24px 10px 24px;background:linear-gradient(135deg,#0b4d93 0%,#1f6fbf 100%);text-align:center;">
+              {logo_html}
+              <h1 style="margin:0;color:#ffffff;font-size:22px;line-height:1.25;">{escape_html(title)}</h1>
+              <p style="margin:8px 0 0 0;color:#d8e8fb;font-size:14px;line-height:1.45;">{escape_html(subtitle)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 24px 24px 24px;">
+              {content_html}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:14px 24px 20px 24px;background:#f8fbff;color:#637489;font-size:12px;line-height:1.5;text-align:center;">
+              Este correo fue generado automaticamente por {escape_html(COMPANY_NAME)}.<br>
+              Si tienes preguntas, responde a este correo o escribenos a {footer_support}.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+""".strip()
+
+
+def build_internal_email_content(context: dict) -> tuple[str, str, str]:
+    reference = context["reference"]
+    currency = context["currency"]
+    status = context["tx_status"]
+
+    summary_rows = [
+        ("Referencia", reference),
+        ("Transaccion Wompi", context["tx_id"]),
+        ("Estado", status),
+        ("Metodo de pago", context["payment_method"]),
+        ("Tipo de entrega", "Recoger en tienda" if context["delivery_type"] == "pickup" else "Enviar a domicilio"),
+        ("Zona de envio", context["shipping_zone"]),
+        ("Subtotal", format_currency(context["subtotal"], currency)),
+        ("Costo de envio", format_currency(context["shipping_cost"], currency)),
+        ("Total pagado", format_currency(context["total"], currency)),
+    ]
+
+    buyer = context["buyer"]
+    buyer_rows = [
+        ("Nombre", context["buyer_full_name"]),
+        ("Documento", buyer.get("numero_documento") or "N/A"),
+        ("Telefono", buyer.get("telefono") or "N/A"),
+        ("Email", context["buyer_email"] or "N/A"),
+    ]
+
+    if context["delivery_type"] == "pickup":
+        delivery_rows = [
+            ("Tipo", "Entrega en tienda"),
+            ("Mensaje", context["pickup_message"]),
+        ]
+    else:
+        shipping = context["shipping"]
+        delivery_rows = [
+            ("Tipo", "Envio a domicilio"),
+            ("Direccion", context["shipping_summary"]),
+            ("Departamento", shipping.get("departamento") or "N/A"),
+            ("Ciudad", shipping.get("ciudad") or "N/A"),
+        ]
+
+    content_html = (
+        "<h2 style='margin:0 0 10px 0;color:#0b4d93;font-size:17px;'>Resumen de pago</h2>"
+        + build_html_kv_table(summary_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Datos del comprador</h2>"
+        + build_html_kv_table(buyer_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Entrega</h2>"
+        + build_html_kv_table(delivery_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Productos comprados</h2>"
+        + build_items_html(context["items"], currency, include_product_links=True)
+    )
+
+    html_body = wrap_email_html(
+        title=f"Nueva compra aprobada - {reference}",
+        subtitle=f"Estado del pago: {status}",
+        content_html=content_html,
+    )
+
+    text_lines = [
+        f"Nueva compra aprobada ({status}).",
+        "",
+        f"Referencia: {reference}",
+        f"Transaccion Wompi: {context['tx_id']}",
+        f"Metodo de pago: {context['payment_method']}",
+        f"Tipo de entrega: {'Recoger en tienda' if context['delivery_type'] == 'pickup' else 'Enviar a domicilio'}",
+        f"Zona de envio: {context['shipping_zone']}",
+        f"Subtotal: {format_currency(context['subtotal'], currency)}",
+        f"Envio: {format_currency(context['shipping_cost'], currency)}",
+        f"Total: {format_currency(context['total'], currency)}",
+        "",
+        "Datos del comprador:",
+        f"- Nombre: {context['buyer_full_name']}",
+        f"- Documento: {buyer.get('numero_documento') or 'N/A'}",
+        f"- Telefono: {buyer.get('telefono') or 'N/A'}",
+        f"- Email: {context['buyer_email'] or 'N/A'}",
+        "",
+        "Productos:",
+    ]
+
+    if not context["items"]:
+        text_lines.append("- Sin detalle de productos")
+    else:
+        for item in context["items"]:
+            line = (
+                f"- {item['nombre']} | Cantidad: {item['cantidad']} | "
+                f"Precio: {format_currency(item['precio'], currency)} | "
+                f"Subtotal: {format_currency(item['subtotal'], currency)}"
+            )
+            text_lines.append(line)
+            if item.get("product_url"):
+                text_lines.append(f"  URL: {item['product_url']}")
+
     subject = f"[Facturacion] Compra aprobada {reference}"
-    body = "\n".join(lines)
-    return subject, body
+    return subject, "\n".join(text_lines), html_body
 
 
-def enviar_correo_facturacion(order: dict, transaction: dict) -> tuple[bool, str]:
-    if not FACTURACION_EMAIL_TO:
-        return False, "FACTURACION_EMAIL_TO no esta configurado"
+def build_customer_email_content(context: dict) -> tuple[str, str, str]:
+    reference = context["reference"]
+    currency = context["currency"]
+    first_name = (context["buyer"].get("nombre") or "Cliente").strip() or "Cliente"
 
+    summary_rows = [
+        ("Referencia de pedido", reference),
+        ("Transaccion", context["tx_id"]),
+        ("Metodo de pago", context["payment_method"]),
+        ("Subtotal", format_currency(context["subtotal"], currency)),
+        ("Costo de envio", format_currency(context["shipping_cost"], currency)),
+        ("Total pagado", format_currency(context["total"], currency)),
+    ]
+
+    if context["delivery_type"] == "pickup":
+        delivery_rows = [
+            ("Tipo de entrega", "Recoger en tienda"),
+            ("Mensaje", context["pickup_message"]),
+        ]
+    else:
+        delivery_rows = [
+            ("Tipo de entrega", "Envio a domicilio"),
+            ("Zona", context["shipping_zone"]),
+            ("Direccion", context["shipping_summary"]),
+        ]
+
+    content_html = (
+        f"<p style='margin:0 0 14px 0;color:#1a2b3d;font-size:14px;line-height:1.6;'>Hola <strong>{escape_html(first_name)}</strong>, "
+        "tu pago fue aprobado correctamente. Gracias por confiar en nosotros.</p>"
+        + "<h2 style='margin:0 0 10px 0;color:#0b4d93;font-size:17px;'>Resumen de tu pedido</h2>"
+        + build_html_kv_table(summary_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Entrega</h2>"
+        + build_html_kv_table(delivery_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Productos comprados</h2>"
+        + build_items_html(context["items"], currency, include_product_links=False)
+    )
+
+    html_body = wrap_email_html(
+        title=f"Compra aprobada - Pedido {reference}",
+        subtitle="Tu compra fue confirmada y ya esta en proceso.",
+        content_html=content_html,
+    )
+
+    text_lines = [
+        f"Hola {first_name},",
+        "",
+        "Tu pago fue aprobado correctamente.",
+        f"Referencia del pedido: {reference}",
+        f"Transaccion: {context['tx_id']}",
+        f"Metodo de pago: {context['payment_method']}",
+        f"Subtotal: {format_currency(context['subtotal'], currency)}",
+        f"Envio: {format_currency(context['shipping_cost'], currency)}",
+        f"Total pagado: {format_currency(context['total'], currency)}",
+        "",
+        "Productos:",
+    ]
+
+    if not context["items"]:
+        text_lines.append("- Sin detalle de productos")
+    else:
+        for item in context["items"]:
+            text_lines.append(
+                f"- {item['nombre']} | Cantidad: {item['cantidad']} | "
+                f"Precio: {format_currency(item['precio'], currency)} | "
+                f"Subtotal: {format_currency(item['subtotal'], currency)}"
+            )
+
+    text_lines.extend([
+        "",
+        "Si tienes dudas, responde a este correo y te ayudamos.",
+        f"{COMPANY_NAME}",
+    ])
+
+    subject = f"[{COMPANY_NAME}] Compra aprobada - Pedido {reference}"
+    return subject, "\n".join(text_lines), html_body
+
+
+def send_email_message(to_email: str, subject: str, text_body: str, html_body: str, cc_email: str = "") -> tuple[bool, str]:
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASSWORD:
         return False, "Configura SMTP_HOST, SMTP_USER y SMTP_PASSWORD"
 
-    subject, body = build_email_content(order, transaction)
+    destination = (to_email or "").strip()
+    if not destination:
+        return False, "Destinatario de correo vacio"
 
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = SMTP_FROM
-    msg["To"] = FACTURACION_EMAIL_TO
-    if FACTURACION_EMAIL_CC.strip():
-        msg["Cc"] = FACTURACION_EMAIL_CC
-    msg.set_content(body)
+    msg["To"] = destination
+    if cc_email.strip():
+        msg["Cc"] = cc_email
+    if SUPPORT_EMAIL:
+        msg["Reply-To"] = SUPPORT_EMAIL
+
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype="html")
 
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
@@ -536,6 +878,40 @@ def enviar_correo_facturacion(order: dict, transaction: dict) -> tuple[bool, str
         return True, "Correo enviado"
     except Exception as exc:
         return False, str(exc)
+
+
+def enviar_correos_compra_aprobada(order: dict, transaction: dict) -> tuple[bool, str]:
+    if not FACTURACION_EMAIL_TO:
+        return False, "FACTURACION_EMAIL_TO no esta configurado"
+
+    context = build_order_email_context(order, transaction)
+
+    customer_email = (context.get("buyer_email") or "").strip()
+    if not validate_email(customer_email):
+        return False, "No fue posible determinar un email valido para el cliente"
+
+    internal_subject, internal_text, internal_html = build_internal_email_content(context)
+    internal_sent, internal_detail = send_email_message(
+        FACTURACION_EMAIL_TO,
+        internal_subject,
+        internal_text,
+        internal_html,
+        FACTURACION_EMAIL_CC,
+    )
+    if not internal_sent:
+        return False, f"correo interno: {internal_detail}"
+
+    customer_subject, customer_text, customer_html = build_customer_email_content(context)
+    customer_sent, customer_detail = send_email_message(
+        customer_email,
+        customer_subject,
+        customer_text,
+        customer_html,
+    )
+    if not customer_sent:
+        return False, f"correo cliente: {customer_detail}"
+
+    return True, "Correos interno y cliente enviados"
 
 
 def generar_firma(reference, amount_in_cents, currency, integrity_secret):

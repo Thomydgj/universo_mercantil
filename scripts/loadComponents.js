@@ -8,7 +8,9 @@
     const HEADER_TEMPLATE = `
   <div class="header-shell">
     <a class="logo" href="/principal.html" aria-label="Ir a inicio">
-      <span class="logo-image-slot" aria-hidden="true">LOGO</span>
+      <span class="logo-image-slot">
+        <img class="logo-image" src="assets/logo.png" alt="Logo Universo Mercantil" loading="eager" decoding="async">
+      </span>
       <span class="logo-text-wrap">
         <span class="logo-text">Universo Mercantil</span>
         <span class="logo-subtext">Empaques industriales</span>

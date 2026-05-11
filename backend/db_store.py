@@ -89,6 +89,8 @@ def init_database() -> None:
                 nombre TEXT,
                 variante_id TEXT,
                 variante_nombre TEXT,
+                imagen TEXT,
+                product_url TEXT,
                 cantidad INTEGER,
                 precio BIGINT,
                 subtotal BIGINT,
@@ -97,6 +99,8 @@ def init_database() -> None:
             )
             """
         ))
+        conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS imagen TEXT"))
+        conn.execute(text("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_url TEXT"))
 
         conn.execute(text(
             """
@@ -210,9 +214,9 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
     insert_item_sql = text(
         """
         INSERT INTO order_items (
-            reference, line_index, item_id, sku, nombre, variante_id, variante_nombre, cantidad, precio, subtotal
+            reference, line_index, item_id, sku, nombre, variante_id, variante_nombre, imagen, product_url, cantidad, precio, subtotal
         ) VALUES (
-            :reference, :line_index, :item_id, :sku, :nombre, :variante_id, :variante_nombre, :cantidad, :precio, :subtotal
+            :reference, :line_index, :item_id, :sku, :nombre, :variante_id, :variante_nombre, :imagen, :product_url, :cantidad, :precio, :subtotal
         )
         """
     )
@@ -231,6 +235,8 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
                 "nombre": item.get("nombre"),
                 "variante_id": item.get("variante_id"),
                 "variante_nombre": item.get("variante_nombre"),
+                "imagen": item.get("imagen"),
+                "product_url": item.get("product_url"),
                 "cantidad": int(item.get("cantidad") or 0),
                 "precio": int(item.get("precio") or 0),
                 "subtotal": int(item.get("subtotal") or 0),
@@ -275,6 +281,8 @@ def db_get_order(reference: str) -> dict[str, Any] | None:
             "nombre": item.get("nombre"),
             "variante_id": item.get("variante_id"),
             "variante_nombre": item.get("variante_nombre"),
+            "imagen": item.get("imagen"),
+            "product_url": item.get("product_url"),
             "cantidad": item.get("cantidad"),
             "precio": item.get("precio"),
             "subtotal": item.get("subtotal"),

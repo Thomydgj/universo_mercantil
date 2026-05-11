@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS order_items (
     nombre TEXT,
     variante_id TEXT,
     variante_nombre TEXT,
+    imagen TEXT,
+    product_url TEXT,
     cantidad INTEGER,
     precio BIGINT,
     subtotal BIGINT,

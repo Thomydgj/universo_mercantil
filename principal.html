@@ -14,12 +14,33 @@
 
     <header id="header"></header>
     <!-- Hero Section -->
-<section id="inicio" class="hero">
-  <picture>
-    <source media="(max-width: 768px)" srcset="assets/images/banners/movil/aniversario_movil.jpg">
-    <img src="assets/images/banners/escritorio/aniversario_pc.jpg" alt="Hero Banner">
-  </picture>
-</section>
+    <section id="inicio" class="hero" aria-label="Galeria destacada de empaques">
+        <div class="hero-carrusel" data-hero-slider>
+            <div class="hero-track">
+                <article class="hero-slide is-active">
+                    <picture>
+                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_movil.jpg">
+                        <img src="assets/images/banners/escritorio/hero_pc.jpg" alt="Portafolio de empaques flexibles y termoformados para diferentes industrias">
+                    </picture>
+                </article>
+
+                <article class="hero-slide">
+                    <picture>
+                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_2_movil.jpg">
+                        <img src="assets/images/banners/escritorio/hero_2_pc.jpg" alt="Soluciones de empaque industrial para alimentos y cárnicos">
+                    </picture>
+                </article>
+            </div>
+
+            <button class="hero-control prev" type="button" aria-label="Imagen anterior">&#10094;</button>
+            <button class="hero-control next" type="button" aria-label="Imagen siguiente">&#10095;</button>
+
+            <div class="hero-indicators" aria-label="Selector de imagen hero">
+                <button class="hero-dot is-active" type="button" aria-label="Mostrar imagen 1" aria-current="true"></button>
+                <button class="hero-dot" type="button" aria-label="Mostrar imagen 2" aria-current="false"></button>
+            </div>
+        </div>
+    </section>
 
     <section class="presentacion-principal" aria-label="Presentación principal">
         <div class="presentacion-content">
@@ -118,7 +139,7 @@
 
 
     <!-- Proceso -->
-    <section id="proceso" class="proceso-trabajo">
+    <!-- <section id="proceso" class="proceso-trabajo">
         <div class="proceso-container">
             <h2>Como Trabajamos</h2>
             <div class="decorative-line"></div>
@@ -142,17 +163,8 @@
                 </article>
             </div>
         </div>
-    </section>
+    </section> -->
     
-
-    <section class="trust-strip" aria-label="Confianza y respaldo">
-        <div class="trust-strip-container">
-                <h2>Empresas que confían en nosotros</h2>
-            <div class="trust-logos-banner">
-                <img src="assets/images/banners/escritorio/marcas_pc.jpg" alt="Marcas que confian en Universo Mercantil" loading="lazy">
-            </div>
-        </div>
-    </section>
     <!-- Por Qué Elegirnos -->
     <section id="por-que-elegirnos" class="por-que-elegirnos">
         <div class="por-que-container">
@@ -211,6 +223,17 @@
             </div>
         </div>
     </section>
+
+
+    <section class="trust-strip" aria-label="Confianza y respaldo">
+        <div class="trust-strip-container">
+                <h2>Empresas que confían en nosotros</h2>
+            <div class="trust-logos-banner">
+                <img src="assets/images/banners/escritorio/marcas_pc.jpg" alt="Marcas que confian en Universo Mercantil" loading="lazy">
+            </div>
+        </div>
+    </section>
+
 
     <!-- Cotizacion Rapida -->
     <section id="cotizacion" class="cotizacion-rapida">

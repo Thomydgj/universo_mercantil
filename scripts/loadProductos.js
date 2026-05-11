@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
       banner.innerHTML = `
         <picture>
           <source media="(max-width: 768px)" srcset="assets/images/banners/movil/aniversario_movil.jpg">
-          <img src="assets/images/banners/escritorio/aniversario_pc.jpg" alt="Catalogo de productos">
+          <img src="assets/images/banners/escritorio/hero_2_pc.jpg" alt="Catalogo de productos">
         </picture>
       `;
     }

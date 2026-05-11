@@ -83,15 +83,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const items = carritoActual.map(item => {
       const precio = Number(item.precio) || 0;
       const cantidad = Number(item.cantidad) || 1;
+      const productId = item.id ? String(item.id) : "";
       return {
-        id: item.id,
-        sku: item.cartKey || (item.varianteId ? `${item.id}::${item.varianteId}` : item.id),
+        id: productId,
+        sku: item.cartKey || (item.varianteId ? `${productId}::${item.varianteId}` : productId),
         nombre: item.nombre,
         variante_id: item.varianteId || null,
         variante_nombre: item.varianteNombre || null,
         cantidad,
         precio,
-        subtotal: precio * cantidad
+        subtotal: precio * cantidad,
+        imagen: item.imagen || "",
+        product_url: productId ? `/detalles.html?id=${encodeURIComponent(productId)}` : ""
       };
     });
 
