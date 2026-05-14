@@ -1,9 +1,9 @@
-// Lista única de productos
+﻿// Lista �nica de productos
 const productos = [
     {
         id: "multibarrera",
         nombre: "Multibarrera",
-        descripcionCorta: "Empaque versátil y resistente.",
+        descripcionCorta: "Empaque vers�til y resistente.",
         descripcionLarga: "El empaque Multibarrera es ideal para una amplia gama de productos, ofreciendo resistencia y versatilidad.",
         precio: "10000",
         imagenes: [
@@ -17,7 +17,7 @@ const productos = [
         id: "multiflex",
         nombre: "Multiflex",
         descripcionCorta: "Empaque flexible y duradero.",
-        descripcionLarga: "El empaque Multiflex está diseñado para adaptarse a diferentes tipos de productos, proporcionando durabilidad y flexibilidad.",
+        descripcionLarga: "El empaque Multiflex est� dise�ado para adaptarse a diferentes tipos de productos, proporcionando durabilidad y flexibilidad.",
         precio: "11000",
         imagenes: [
             "assets/images/productos/Multiflex/Multiflex1.png",
@@ -31,8 +31,8 @@ const productos = [
     {
         id: "termoflex",
         nombre: "Termoflex",
-        descripcionCorta: "Empaque térmico para máxima protección.",
-        descripcionLarga: "El empaque Termoflex ofrece una excelente protección térmica, ideal para productos que requieren mantener su temperatura.",
+        descripcionCorta: "Empaque t�rmico para m�xima protecci�n.",
+        descripcionLarga: "El empaque Termoflex ofrece una excelente protecci�n t�rmica, ideal para productos que requieren mantener su temperatura.",
         precio: "12000",
         imagenes: [
             "assets/images/productos/Termoflex/Termoflex1.png",
@@ -47,8 +47,8 @@ const productos = [
     {
         id: "tripa-natural-cerdo",
         nombre: "Tripa Natural de Cerdo",
-        descripcionCorta: "Empaque natural para cárnicos.",
-        descripcionLarga: "La tripa natural de cerdo es perfecta para embutidos y productos cárnicos, ofreciendo una presentación auténtica y tradicional.",
+        descripcionCorta: "Empaque natural para c�rnicos.",
+        descripcionLarga: "La tripa natural de cerdo es perfecta para embutidos y productos c�rnicos, ofreciendo una presentaci�n aut�ntica y tradicional.",
         precio: "13000",
         imagenes: [
             "assets/images/productos/Tripa_Natural_Cerdo/Tripa1.png",
@@ -60,8 +60,8 @@ const productos = [
     {
         id: "fibrosa",
         nombre: "Fibrosa",
-        descripcionCorta: "Empaque resistente para cárnicos.",
-        descripcionLarga: "El empaque Fibrosa está diseñado para productos cárnicos, proporcionando resistencia y durabilidad durante el almacenamiento y transporte.",
+        descripcionCorta: "Empaque resistente para c�rnicos.",
+        descripcionLarga: "El empaque Fibrosa est� dise�ado para productos c�rnicos, proporcionando resistencia y durabilidad durante el almacenamiento y transporte.",
         precio: "14000",
         imagenes: [
             "assets/images/productos/Fibrosa/Fibrosa1.png",
@@ -76,7 +76,7 @@ const productos = [
         id: "celulosa",
         nombre: "Celulosa",
         descripcionCorta: "Empaque biodegradable y sostenible.",
-        descripcionLarga: "El empaque de celulosa es una opción ecológica, biodegradable y sostenible, ideal para productos que buscan reducir su impacto ambiental.",
+        descripcionLarga: "El empaque de celulosa es una opci�n ecol�gica, biodegradable y sostenible, ideal para productos que buscan reducir su impacto ambiental.",
         precio: "15000",
         imagenes: [
             "assets/images/productos/Celulosa/Celulosa1.png",
@@ -90,7 +90,7 @@ const productos = [
     {
         id: "flow-pack-selle-ventral",
         nombre: "Flow-Pack Selle Ventral",
-        descripcionCorta: "Empaque sellado para máxima frescura.",
+        descripcionCorta: "Empaque sellado para m�xima frescura.",
         descripcionLarga: "El Flow-Pack Selle Ventral ofrece un sellado seguro que mantiene la frescura de los productos, ideal para alimentos y snacks.",
         precio: "16000",
         imagenes: [
@@ -103,8 +103,8 @@ const productos = [
     {
         id: "bolsa-flex-up-con-zipper",
         nombre: "Bolsa Flex-Up con Zipper",
-        descripcionCorta: "Empaque reutilizable con cierre hermético.",
-        descripcionLarga: "Este empaque cuenta con un zipper que permite un cierre hermético, ideal para conservar la frescura de los productos y facilitar su almacenamiento.",
+        descripcionCorta: "Empaque reutilizable con cierre herm�tico.",
+        descripcionLarga: "Este empaque cuenta con un zipper que permite un cierre herm�tico, ideal para conservar la frescura de los productos y facilitar su almacenamiento.",
         precio: "17000",
         imagenes: [
             "assets/images/productos/Bolsa_Flex_Up_Con_Zipper/Zipper1.png",
@@ -116,9 +116,9 @@ const productos = [
     },
     {
         id: "funda-plastica-multiflex",
-        nombre: "Funda Plástica Multiflex",
-        descripcionCorta: "Empaque plástico resistente y versátil.",
-        descripcionLarga: "La funda plástica Multiflex es ideal para una variedad de productos, ofreciendo resistencia y versatilidad en su uso.",
+        nombre: "Funda Pl�stica Multiflex",
+        descripcionCorta: "Empaque pl�stico resistente y vers�til.",
+        descripcionLarga: "La funda pl�stica Multiflex es ideal para una variedad de productos, ofreciendo resistencia y versatilidad en su uso.",
         precio: "18000",
         imagenes: [
             "assets/images/productos/Funda_Plastica_Multiflex/Multiflex1.png",
@@ -129,8 +129,8 @@ const productos = [
     {
         id: "flex-up-forma",
         nombre: "Flex-Up con Forma",
-        descripcionCorta: "Empaque flexible con diseño personalizado.",
-        descripcionLarga: "Este empaque Flex-Up con Forma está diseñado para adaptarse a la forma del producto, ofreciendo una presentación atractiva y funcional.",
+        descripcionCorta: "Empaque flexible con dise�o personalizado.",
+        descripcionLarga: "Este empaque Flex-Up con Forma est� dise�ado para adaptarse a la forma del producto, ofreciendo una presentaci�n atractiva y funcional.",
         precio: "19000",
         imagenes: [
             "assets/images/productos/Flex_Up_con_Forma/Forma1.png",
@@ -143,8 +143,8 @@ const productos = [
     {
         id: "termoformados",
         nombre: "Termoformados",
-        descripcionCorta: "Empaque termoformado para máxima protección.",
-        descripcionLarga: "El empaque termoformado ofrece una protección superior para productos delicados, manteniéndolos frescos y seguros durante su transporte y almacenamiento.",
+        descripcionCorta: "Empaque termoformado para m�xima protecci�n.",
+        descripcionLarga: "El empaque termoformado ofrece una protecci�n superior para productos delicados, manteni�ndolos frescos y seguros durante su transporte y almacenamiento.",
         precio: "20000",
         imagenes: [
             "assets/images/productos/Termoformados/Termoformados1.png",
@@ -162,7 +162,7 @@ const productos = [
         id: "bolsa-plana",
         nombre: "Bolsa Plana",
         descripcionCorta: "Empaque ideal para alimentos preparados.",
-        descripcionLarga: "Este empaque está diseñado para conservar la frescura de alimentos preparados. Es resistente, seguro y perfecto para el transporte.",
+        descripcionLarga: "Este empaque est� dise�ado para conservar la frescura de alimentos preparados. Es resistente, seguro y perfecto para el transporte.",
         precio: "21000",
         imagenes: [
             "assets/images/productos/Bolsa_Plana/Plana1.png",
@@ -214,8 +214,8 @@ const productos = [
     {
         id: "bolsa-selle-ventral",
         nombre: "Bolsa Selle Ventral",
-        descripcionCorta: "Empaque práctico y reutilizable.",
-        descripcionLarga: "Este empaque es perfecto para almacenar alimentos de manera práctica y reutilizable. Fabricado con materiales de alta calidad.",
+        descripcionCorta: "Empaque pr�ctico y reutilizable.",
+        descripcionLarga: "Este empaque es perfecto para almacenar alimentos de manera pr�ctica y reutilizable. Fabricado con materiales de alta calidad.",
         precio: "22000",
         imagenes: [
             "assets/images/productos/Bolsa_Selle_Ventral/SelleVentral1.png",
@@ -226,8 +226,8 @@ const productos = [
     {
         id: "flex-up",
         nombre: "Flex-Up",
-        descripcionCorta: "Empaque flexible y versátil.",
-        descripcionLarga: "El empaque Flex-Up es ideal para una amplia variedad de productos. Su diseño flexible lo hace perfecto para el almacenamiento y transporte.",
+        descripcionCorta: "Empaque flexible y vers�til.",
+        descripcionLarga: "El empaque Flex-Up es ideal para una amplia variedad de productos. Su dise�o flexible lo hace perfecto para el almacenamiento y transporte.",
         precio: "23000",
         imagenes: [
             "assets/images/productos/Flex_Up/FlexUp1.png",
@@ -241,8 +241,8 @@ const productos = [
     {
         id: "amipak",
         nombre: "Amipak",
-        descripcionCorta: "Empaque especializado para cárnicos.",
-        descripcionLarga: "El empaque Amipak está diseñado específicamente para carnes frescas, asegurando su conservación y frescura por más tiempo.",
+        descripcionCorta: "Empaque especializado para c�rnicos.",
+        descripcionLarga: "El empaque Amipak est� dise�ado espec�ficamente para carnes frescas, asegurando su conservaci�n y frescura por m�s tiempo.",
         precio: "24000",
         imagenes: [
             "assets/images/productos/Amipak/Amipak1.png",
@@ -256,8 +256,8 @@ const productos = [
     {
         id: "flow-pack-4-selles",
         nombre: "Flow-Pack 4 Selles",
-        descripcionCorta: "Empaque sellado para máxima protección.",
-        descripcionLarga: "El Flow-Pack 4 Selles ofrece una protección superior para productos delicados, manteniéndolos frescos y seguros.",
+        descripcionCorta: "Empaque sellado para m�xima protecci�n.",
+        descripcionLarga: "El Flow-Pack 4 Selles ofrece una protecci�n superior para productos delicados, manteni�ndolos frescos y seguros.",
         precio: "25000",
         imagenes: [
             "assets/images/productos/Flow_Pack_4_Selles/CuatroSelles1.png",
@@ -316,9 +316,9 @@ const productos = [
     },
     {
         id: "colageno",
-        nombre: "Colágeno",
-        descripcionCorta: "Empaque especializado para cárnicos.",
-        descripcionLarga: "El empaque de colágeno es ideal para productos cárnicos, ofreciendo una excelente conservación y presentación.",
+        nombre: "Col�geno",
+        descripcionCorta: "Empaque especializado para c�rnicos.",
+        descripcionLarga: "El empaque de col�geno es ideal para productos c�rnicos, ofreciendo una excelente conservaci�n y presentaci�n.",
         precio: "27000",
         imagenes: [
             "assets/images/productos/Colageno/Colageno1.png",
@@ -357,4 +357,5 @@ const bannersPorCategoria = {
     mobile: "assets/images/banners/movil/mascotas_movil.jpg"
   }
 };
+
 

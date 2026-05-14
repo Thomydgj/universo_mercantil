@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+﻿document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("container-categorias");
   const template = document.getElementById("template-categoria");
   const tipoActualEl = document.getElementById("tipo-actual");
@@ -27,12 +27,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (filtroTiposEl) {
     const chips = [
-      `<a href="/categorias.html" class="chip-categoria ${tipoSeleccionado ? "" : "activa"}">Todos</a>`
+      `<a href="categorias.html" class="chip-categoria ${tipoSeleccionado ? "" : "activa"}">Todos</a>`
     ];
 
     tiposDisponibles.forEach(tipo => {
       chips.push(
-        `<a href="/categorias.html?tipo=${tipo}" class="chip-categoria ${tipoSeleccionado === tipo ? "activa" : ""}">${nombresTipos[tipo] || tipo}</a>`
+        `<a href="categorias.html?tipo=${tipo}" class="chip-categoria ${tipoSeleccionado === tipo ? "activa" : ""}">${nombresTipos[tipo] || tipo}</a>`
       );
     });
 
@@ -92,3 +92,5 @@ document.addEventListener("DOMContentLoaded", () => {
     container.appendChild(card);
   });
 });
+
+

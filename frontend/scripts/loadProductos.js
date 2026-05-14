@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+﻿document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("container-productos");
   const template = document.getElementById("template-producto");
   const categoriaActualEl = document.getElementById("categoria-actual");
@@ -36,12 +36,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Construye chips de categorias
   if (filtroCategoriasEl) {
     const chips = [
-      `<a href="/productos.html" class="chip-categoria ${categoriaSeleccionada ? "" : "activa"}">Todas</a>`
+      `<a href="productos.html" class="chip-categoria ${categoriaSeleccionada ? "" : "activa"}">Todas</a>`
     ];
 
     categoriasDisponibles.forEach(cat => {
       chips.push(
-        `<a href="/productos.html?categoria=${cat}" class="chip-categoria ${categoriaSeleccionada === cat ? "activa" : ""}">${nombresCategorias[cat] || cat}</a>`
+        `<a href="productos.html?categoria=${cat}" class="chip-categoria ${categoriaSeleccionada === cat ? "activa" : ""}">${nombresCategorias[cat] || cat}</a>`
       );
     });
 
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Renderiza las tarjetas
   productosFiltrados.forEach(p => {
     const card = template.content.cloneNode(true);
-    card.querySelector("a").href = `/detalles.html?id=${p.id}`;
+    card.querySelector("a").href = `detalles.html?id=${p.id}`;
     card.querySelector("img").src = p.imagenes[0];
     card.querySelector("img").alt = p.nombre;
     card.querySelector("img").loading = "lazy";
@@ -103,3 +103,4 @@ document.addEventListener("DOMContentLoaded", () => {
     container.appendChild(card);
   });
 });
+

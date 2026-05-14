@@ -1,9 +1,9 @@
-// Animación para contador de estadísticas
+﻿// Animaci�n para contador de estad�sticas
 document.addEventListener('DOMContentLoaded', function() {
     initHeroSlider();
 
     
-    // Intersection Observer para detectar cuando la sección es visible
+    // Intersection Observer para detectar cuando la secci�n es visible
     const estadisticasSection = document.querySelector('.estadisticas');
     
     if (estadisticasSection) {
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Smooth scroll para los enlaces de navegación
+    // Smooth scroll para los enlaces de navegaci�n
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             const href = this.getAttribute('href');
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Botón "Volver Arriba" y accesos rápidos de contacto
+    // Bot�n "Volver Arriba" y accesos r�pidos de contacto
     const backToTopButton = document.getElementById('backToTop');
 
     function updateFloatingButtons() {
@@ -207,3 +207,4 @@ function initHeroSlider() {
     updateSlider(0);
     startAutoplay();
 }
+

@@ -1,4 +1,4 @@
-
+﻿
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Spline+Sans:wght@300..700&display=swap');
 
 *{
@@ -1891,20 +1891,20 @@ h2::after {
 .flexibles{
 
     background:linear-gradient(rgba(31, 66, 94, 0.7), rgba(31, 66, 94, 0.7)),
-    url('/assets/images/productos_flexibles.png') no-repeat center center/cover;
+    url('../assets/images/productos_flexibles.png') no-repeat center center/cover;
 
 }
 
 .termoformados{
 
     background:linear-gradient(rgba(31, 66, 94, 0.7), rgba(31, 66, 94, 0.7)),
-    url('/assets/images/termoformados.jpg') no-repeat center center/cover;
+    url('../assets/images/termoformados.jpg') no-repeat center center/cover;
 
 }
 .carnicos{
 
     background:linear-gradient(rgba(31, 66, 94, 0.7), rgba(31, 66, 94, 0.7)),
-    url('/assets/images/carnicos.jpg') no-repeat center center/cover;
+    url('../assets/images/carnicos.jpg') no-repeat center center/cover;
 
 }
 
@@ -3746,3 +3746,5 @@ h2::after {
         text-align: center;
     }
 }
+
+

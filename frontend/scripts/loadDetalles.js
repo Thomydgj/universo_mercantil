@@ -1,4 +1,4 @@
-// Selecciona el contenedor y el template
+﻿// Selecciona el contenedor y el template
 const container = document.getElementById("container-detalles-producto");
 const template = document.getElementById("template-detalle");
 const detalleBreadcrumb = document.getElementById("detalle-breadcrumb");
@@ -93,9 +93,9 @@ if (producto) {
 
   if (detalleBreadcrumb) {
     const rutaCategoria = categoriaPrincipal
-      ? `/productos.html?categoria=${categoriaPrincipal}`
-      : "/productos.html";
-    detalleBreadcrumb.innerHTML = `<a href="/principal.html">Inicio</a> / <a href="/productos.html">Productos</a> / <a href="${rutaCategoria}">${categoriaNombre}</a> / ${producto.nombre}`;
+      ? `productos.html?categoria=${categoriaPrincipal}`
+      : "productos.html";
+    detalleBreadcrumb.innerHTML = `<a href="principal.html">Inicio</a> / <a href="productos.html">Productos</a> / <a href="${rutaCategoria}">${categoriaNombre}</a> / ${producto.nombre}`;
   }
 
   document.title = `${producto.nombre} - Universo Mercantil`;
@@ -381,7 +381,7 @@ if (producto) {
     agregarProductoAlCarrito(producto, cantidad);
 
     // Redirigir al carrito
-    window.location.href = "/carrito.html"; // ajusta la ruta según tu proyecto
+    window.location.href = "carrito.html"; // ajusta la ruta según tu proyecto
   });
 
   // Inserta el card en el contenedor
@@ -395,3 +395,5 @@ if (producto) {
     detalleSubtitulo.textContent = "No encontramos el producto solicitado. Explora otras opciones del catalogo.";
   }
 }
+
+

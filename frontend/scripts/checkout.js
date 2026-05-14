@@ -1,4 +1,4 @@
-// checkout.js
+﻿// checkout.js
 document.addEventListener("DOMContentLoaded", () => {
   const runtimeConfig = window.UNIVERSO_CONFIG || {};
   const BACKEND_BASE_URL = (runtimeConfig.backendBaseUrl || "http://localhost:8000").replace(/\/$/, "");
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
         precio,
         subtotal: precio * cantidad,
         imagen: item.imagen || "",
-        product_url: productId ? `/detalles.html?id=${encodeURIComponent(productId)}` : ""
+        product_url: productId ? `detalles.html?id=${encodeURIComponent(productId)}` : ""
       };
     });
 
@@ -201,3 +201,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+

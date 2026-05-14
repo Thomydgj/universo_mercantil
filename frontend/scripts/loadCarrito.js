@@ -1,4 +1,4 @@
-// loadCarrito.js
+﻿// loadCarrito.js
 document.addEventListener("DOMContentLoaded", () => {
   const contenedor = document.getElementById("container-tarjetas-carrito");
   const template = document.getElementById("template-carrito");
@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const inputCantidad = clone.querySelector("input[type='number']");
       inputCantidad.value = prod.cantidad;
 
-      // Validar cantidad mínima = 1
+      // Validar cantidad m�nima = 1
       // Evento input: permite borrar y escribir libremente
       inputCantidad.addEventListener("input", e => {
         const valor = parseInt(e.target.value, 10);
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }); 
 
-      // Evento blur: corrige si quedó vacío o inválido
+      // Evento blur: corrige si qued� vac�o o inv�lido
       inputCantidad.addEventListener("blur", e => {
         let valor = parseInt(e.target.value, 10);
         if (isNaN(valor) || valor < 1) {
@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
         actualizarTotal();
       });
 
-      // Botón eliminar
+      // Bot�n eliminar
       const btnEliminar = clone.querySelector(".btn-eliminar");
       if (btnEliminar) {
         btnEliminar.addEventListener("click", () => {
@@ -95,9 +95,9 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       contenedor.appendChild(totalDiv);
     } else {
-      // Si el carrito está vacío
+      // Si el carrito est� vac�o
       const vacio = document.createElement("p");
-      vacio.textContent = "Tu carrito está vacío.";
+      vacio.textContent = "Tu carrito est� vac�o.";
       itemsScroll.appendChild(vacio);
     }
   }
@@ -122,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (totalNodo) totalNodo.textContent = `$${calcularTotal().toLocaleString("es-CO")}`;
   }
 
-  // Exponer funciones y carrito para otros módulos
+  // Exponer funciones y carrito para otros m�dulos
   window.carritoModule = {
     renderCarrito,
     calcularSubtotal,
@@ -140,4 +140,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderCarrito();
 });
+
 
