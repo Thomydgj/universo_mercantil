@@ -1,4 +1,4 @@
-﻿document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("container-categorias");
   const template = document.getElementById("template-categoria");
   const tipoActualEl = document.getElementById("tipo-actual");
@@ -69,8 +69,8 @@
     if (banner) {
       banner.innerHTML = `
         <picture>
-          <source media="(max-width: 768px)" srcset="assets/images/banners/movil/aniversario_movil.jpg">
-          <img src="assets/images/banners/escritorio/hero_2_pc.jpg" alt="Categorias de empaque">
+          <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_2_movil.webp">
+          <img src="assets/images/banners/escritorio/hero_2_pc.webp" alt="Categorias de empaque">
         </picture>
       `;
     }
@@ -92,5 +92,3 @@
     container.appendChild(card);
   });
 });
-
-

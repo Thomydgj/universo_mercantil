@@ -1,4 +1,4 @@
-﻿// checkout.js
+// checkout.js
 document.addEventListener("DOMContentLoaded", () => {
   const runtimeConfig = window.UNIVERSO_CONFIG || {};
   const BACKEND_BASE_URL = (runtimeConfig.backendBaseUrl || "http://localhost:8000").replace(/\/$/, "");
@@ -201,4 +201,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
-

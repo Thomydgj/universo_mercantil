@@ -1,15 +1,16 @@
-﻿    const RUNTIME_CONFIG = window.UNIVERSO_CONFIG || {};
+    const RUNTIME_CONFIG = window.UNIVERSO_CONFIG || {};
     const CONTACT_CONFIG = {
     whatsapp: RUNTIME_CONFIG.whatsapp || "573001234567",
+    whatsappMessage: RUNTIME_CONFIG.whatsappMessage || "Hola, quiero cotizar empaques para mi negocio.",
     phoneDisplay: RUNTIME_CONFIG.phoneDisplay || "+57 300 123 4567",
     phoneDial: RUNTIME_CONFIG.phoneDial || "+573001234567"
   };
 
     const HEADER_TEMPLATE = `
   <div class="header-shell">
-    <a class="logo" href="principal.html" aria-label="Ir a inicio">
+    <a class="logo" href="index.html" aria-label="Ir a inicio">
       <span class="logo-image-slot">
-        <img class="logo-image" src="assets/logo.png" alt="Logo Universo Mercantil" loading="eager" decoding="async">
+        <img class="logo-image" src="assets/logo.webp" alt="Logo Universo Mercantil" loading="eager" decoding="async">
       </span>
       <span class="logo-text-wrap">
         <span class="logo-text">Universo Mercantil</span>
@@ -26,7 +27,7 @@
     <nav id="site-nav" class="nav-bar" aria-label="Navegacion principal">
       <ul>
         <li>
-          <a href="principal.html">
+          <a href="index.html">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 11l9-8 9 8"/>
               <path d="M5 10v10h14V10"/>
@@ -61,6 +62,15 @@
               <path d="M4 21a8 8 0 0 1 16 0"/>
             </svg>
             <span class="nav-label">Nosotros</span>
+          </a>
+        </li>
+        <li class="nav-item-cta">
+          <a href="https://wa.me/573001234567" data-contact-whatsapp target="_blank" rel="noopener noreferrer" aria-label="Cotizar por WhatsApp">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M22 2 11 13"/>
+              <path d="M22 2 15 22 11 13 2 9z"/>
+            </svg>
+            <span class="nav-label">Cotizar</span>
           </a>
         </li>
         <li class="nav-item-cart">
@@ -172,12 +182,14 @@
   }
 
   function applyGlobalContactConfig() {
-    const whatsappButtons = document.querySelectorAll(".quick-contact-btn.whatsapp");
+    const whatsappButtons = document.querySelectorAll(".quick-contact-btn.whatsapp, [data-contact-whatsapp]");
     const callButtons = document.querySelectorAll(".quick-contact-btn.call");
     const footerPhoneLinks = document.querySelectorAll(".footer-contacto a[href^='tel:']");
+    const phoneDisplayTargets = document.querySelectorAll("[data-contact-phone-display]");
+    const whatsappHref = `https://wa.me/${CONTACT_CONFIG.whatsapp}?text=${encodeURIComponent(CONTACT_CONFIG.whatsappMessage)}`;
 
     whatsappButtons.forEach(link => {
-      link.setAttribute("href", `https://wa.me/${CONTACT_CONFIG.whatsapp}`);
+      link.setAttribute("href", whatsappHref);
     });
 
     callButtons.forEach(link => {
@@ -188,17 +200,60 @@
       link.setAttribute("href", `tel:${CONTACT_CONFIG.phoneDial}`);
       link.textContent = CONTACT_CONFIG.phoneDisplay;
     });
+
+    phoneDisplayTargets.forEach(node => {
+      node.textContent = CONTACT_CONFIG.phoneDisplay;
+    });
+  }
+
+  function ensureBackToTopButton() {
+    let backToTopButton = document.getElementById("backToTop");
+    if (backToTopButton) return backToTopButton;
+
+    backToTopButton = document.createElement("button");
+    backToTopButton.id = "backToTop";
+    backToTopButton.className = "back-to-top";
+    backToTopButton.setAttribute("aria-label", "Volver arriba");
+    backToTopButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <polyline points="18 15 12 9 6 15"/>
+      </svg>
+    `;
+
+    document.body.appendChild(backToTopButton);
+    return backToTopButton;
   }
 
   function initFloatingButtons() {
     const quickContactButtons = document.querySelector(".quick-contact");
-    if (!quickContactButtons) return;
+    const backToTopButton = ensureBackToTopButton();
+
+    if (backToTopButton) {
+      backToTopButton.addEventListener("click", () => {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
+      });
+    }
 
     const toggleVisibility = () => {
       if (window.pageYOffset > 600) {
-        quickContactButtons.classList.add("visible");
+        if (backToTopButton) {
+          backToTopButton.classList.add("visible");
+        }
+
+        if (quickContactButtons) {
+          quickContactButtons.classList.add("visible");
+        }
       } else {
-        quickContactButtons.classList.remove("visible");
+        if (backToTopButton) {
+          backToTopButton.classList.remove("visible");
+        }
+
+        if (quickContactButtons) {
+          quickContactButtons.classList.remove("visible");
+        }
       }
     };
 

@@ -1,4 +1,4 @@
-﻿// confirmarEnvio.js
+// confirmarEnvio.js
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.querySelector(".checkout-form");
   if (!form) return;
@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const direccion = document.getElementById("direccion").value.trim();
     const detalleDireccion = document.getElementById("detalle-direccion").value.trim();
 
-    // Validaci�n de tel�fono: exactamente 10 d�gitos
+    // Validación de teléfono: exactamente 10 dígitos
     const telefonoValido = /^\d{10}$/.test(telefono);
     const documentoValido = /^\d{5,20}$/.test(numeroDocumento);
 
@@ -144,4 +144,3 @@ document.addEventListener("DOMContentLoaded", () => {
     window.datosEnvioConfirmados = datosEnvioConfirmados;
   });
 });
-

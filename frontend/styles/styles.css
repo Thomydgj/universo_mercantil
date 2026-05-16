@@ -1,4 +1,4 @@
-﻿
+
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Spline+Sans:wght@300..700&display=swap');
 
 *{
@@ -73,7 +73,7 @@ header{
 /* ============================ VALORES EMPRESA =========================== */
 .valores-empresa {
     background: linear-gradient(135deg, #f4f8fb 0%, #e8f1f8 100%);
-    padding: 80px 10%;
+    padding: 20px 10%;
     font-family: 'Spline Sans', sans-serif;
 }
 
@@ -175,7 +175,9 @@ header{
 #productos h2::after,
 .proceso-trabajo h2::after,
 .cotizacion-rapida h2::after,
-.cta-section h2::after {
+.cta-section h2::after,
+.equipo-aliados h2::after,
+.aliados-final h2::after {
     display: none;
 }
 
@@ -211,6 +213,255 @@ header{
     color: #555;
     line-height: 1.8;
     margin-bottom: 25px;
+    text-align: justify;
+}
+
+/* ============================ EQUIPO Y ALIADOS =========================== */
+.equipo-aliados {
+    padding: 24px 10% 70px;
+    background: linear-gradient(180deg, #ffffff 0%, #f4f8fb 100%);
+    font-family: 'Spline Sans', sans-serif;
+}
+
+.equipo-aliados-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 28px;
+    align-items: stretch;
+}
+
+.equipo-bloque,
+.aliados-bloque,
+.mapa-bloque {
+    background: #ffffff;
+    border: 1px solid #dbe6f2;
+    border-radius: 14px;
+    padding: 28px 24px;
+    box-shadow: 0 10px 28px rgba(3, 77, 153, 0.08);
+}
+
+.equipo-bloque h2,
+.aliados-bloque h2,
+.mapa-bloque h2 {
+    color: #034d99;
+    font-size: 2rem;
+    text-align: center;
+    margin: 0;
+}
+
+.equipo-bloque .decorative-line,
+.aliados-bloque .decorative-line,
+.mapa-bloque .decorative-line {
+    margin: 10px auto 18px;
+}
+
+.equipo-texto,
+.aliados-texto,
+.ubicacion-descripcion,
+.ubicacion-direccion {
+    font-family: 'Geist', sans-serif;
+    color: #3d4958;
+    line-height: 1.7;
+    text-align: center;
+}
+
+.equipo-texto,
+.aliados-texto,
+.ubicacion-descripcion {
+    margin-bottom: 18px;
+}
+
+.equipo-imagen-wrap {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #d6e5f3;
+    background: #f4f8fb;
+}
+
+.equipo-imagen-wrap img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.aliados-slider {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: linear-gradient(140deg, #f7fbff 0%, #eef5fc 100%);
+    border: 1px solid #d6e5f3;
+    min-height: 220px;
+}
+
+.aliados-track {
+    display: flex;
+    transition: transform 0.45s ease;
+    min-height: inherit;
+    align-items: stretch;
+}
+
+.aliado-slide {
+    min-width: 100%;
+    min-height: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 46px 56px;
+    box-sizing: border-box;
+}
+
+.aliado-slide-dark {
+    background: linear-gradient(135deg, #023a73 0%, #0569c7 100%);
+}
+
+.aliado-slide img {
+    max-width: 100%;
+    max-height: 110px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    filter: saturate(1.05);
+}
+
+.aliado-slide-dark img {
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+}
+
+.aliado-control {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(3, 77, 153, 0.25);
+    background: rgba(255, 255, 255, 0.88);
+    color: #034d99;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.aliado-control:hover {
+    background: #034d99;
+    color: #ffffff;
+}
+
+.aliado-control.prev {
+    left: 10px;
+}
+
+.aliado-control.next {
+    right: 10px;
+}
+
+.aliados-indicators {
+    position: absolute;
+    left: 50%;
+    bottom: 14px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+}
+
+.aliado-dot {
+    width: 10px;
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(3, 77, 153, 0.28);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.aliado-dot.is-active {
+    width: 24px;
+    background: #034d99;
+}
+
+/* ============================ ALIADOS FINAL =========================== */
+.aliados-final {
+    padding: 0 10% 80px;
+    background: linear-gradient(180deg, #f4f8fb 0%, #ffffff 100%);
+    font-family: 'Spline Sans', sans-serif;
+}
+
+.aliados-final-container {
+    max-width: 1200px;
+    margin: 100px auto;
+}
+
+.ubicacion-direccion {
+    margin-bottom: 20px;
+}
+
+.ubicacion-mapa-wrap {
+    border: 1px solid #d6e5f3;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #eef5fc;
+}
+
+.ubicacion-mapa-wrap iframe {
+    width: 100%;
+    height: 380px;
+    border: 0;
+    display: block;
+}
+
+/* ============================ DIRECCIONAMIENTO EMPRESARIAL =========================== */
+.direccionamiento-empresa {
+    background: linear-gradient(180deg, #ffffff 0%, #f4f8fb 100%);
+    padding: 20px 10% 80px;
+    font-family: 'Spline Sans', sans-serif;
+}
+
+.direccionamiento-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.direccionamiento-container h2 {
+    text-align: center;
+    color: #034d99;
+    font-size: 2.4rem;
+    margin-bottom: 14px;
+}
+
+.direccionamiento-descripcion {
+    text-align: center;
+    color: #5a6675;
+    font-family: 'Geist', sans-serif;
+    font-size: 1.05rem;
+    margin-bottom: 34px;
+}
+
+.direccionamiento-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 22px;
+}
+
+.direccionamiento-item {
+    background: #ffffff;
+    border: 1px solid #dbe6f2;
+    border-radius: 14px;
+    padding: 28px 24px;
+    box-shadow: 0 10px 28px rgba(3, 77, 153, 0.08);
+}
+
+.direccionamiento-item h3 {
+    color: #034d99;
+    font-size: 1.35rem;
+    margin-bottom: 12px;
+}
+
+.direccionamiento-item p {
+    font-family: 'Geist', sans-serif;
+    color: #3d4958;
+    line-height: 1.75;
     text-align: justify;
 }
 
@@ -524,6 +775,19 @@ header{
     padding: 11px 14px;
 }
 
+.nav-item-cta a {
+    background: linear-gradient(135deg, #ff6b00 0%, #ff8e3a 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 18px rgba(255, 107, 0, 0.24);
+}
+
+.nav-item-cta a:hover,
+.nav-item-cta a.active {
+    background: #ffffff;
+    color: #d25500;
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
@@ -618,6 +882,68 @@ header{
     
     .sobre-texto {
         font-size: 1rem;
+        text-align: left;
+    }
+
+    .equipo-aliados {
+        padding: 12px 5% 50px;
+    }
+
+    .equipo-aliados-container {
+        grid-template-columns: 1fr;
+        gap: 22px;
+    }
+
+    .equipo-bloque,
+    .aliados-bloque,
+    .mapa-bloque {
+        padding: 22px 18px;
+    }
+
+    .equipo-bloque h2,
+    .aliados-bloque h2,
+    .mapa-bloque h2 {
+        font-size: 1.8rem;
+    }
+
+    .aliados-slider {
+        min-height: 190px;
+    }
+
+    .aliado-slide {
+        padding: 36px 42px;
+    }
+
+    .aliado-slide img {
+        max-height: 86px;
+    }
+
+    .aliados-final {
+        padding: 0 5% 50px;
+    }
+
+    .ubicacion-mapa-wrap iframe {
+        height: 320px;
+    }
+
+    .direccionamiento-empresa {
+        padding: 12px 5% 50px;
+    }
+
+    .direccionamiento-container h2 {
+        font-size: 1.9rem;
+    }
+
+    .direccionamiento-descripcion {
+        font-size: 1rem;
+        margin-bottom: 24px;
+    }
+
+    .direccionamiento-item {
+        padding: 22px 18px;
+    }
+
+    .direccionamiento-item p {
         text-align: left;
     }
     
@@ -1533,31 +1859,135 @@ footer ul li a:hover {
 }
 
 .trust-strip-container {
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 0 auto;
-    padding: 0 10%;
+    padding: 0 4%;
 }
 
-.trust-logos-banner {
-    width: 100%;
-    margin-left: 0;
-    margin-right: 0;
-    box-sizing: border-box;
-    border-radius: 12px;
+.trust-slider {
+    position: relative;
+    border-radius: 0;
+    border: none;
+    background: transparent;
     overflow: hidden;
-    box-shadow: 0 10px 24px rgba(9, 51, 94, 0.08);
-    background-color: #ffffff;
+    box-shadow: none;
 }
 
-.trust-logos-banner img {
-    width: 100%;
+.trust-slider-mobile {
+    display: none;
+}
+
+.trust-track {
+    display: flex;
+    transition: transform 0.45s ease;
+}
+
+.trust-slide {
+    min-width: 100%;
+    padding: 8px 30px 18px;
+}
+
+.trust-logos-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.trust-logos-grid-single {
+    grid-template-columns: 1fr;
+    max-width: 460px;
+    margin: 0 auto;
+}
+
+.trust-logo-card {
+    margin: 0;
+    height: 198px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.trust-logo-card img {
+    max-width: 100%;
+    max-height: 180px;
+    width: auto;
     height: auto;
-    display: block;
+    object-fit: contain;
+}
+
+.trust-control {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(3, 77, 153, 0.25);
+    background: rgba(255, 255, 255, 0.88);
+    color: #034d99;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.trust-control:hover {
+    background: #034d99;
+    color: #ffffff;
+}
+
+.trust-control.prev {
+    left: 10px;
+}
+
+.trust-control.next {
+    right: 10px;
+}
+
+.trust-indicators {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+}
+
+.trust-dot {
+    width: 10px;
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(3, 77, 153, 0.28);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.trust-dot.is-active {
+    width: 24px;
+    background: #034d99;
 }
 
 @media (max-width: 900px) {
     .trust-strip-container {
         padding: 0 6%;
+    }
+
+    .trust-slide {
+        padding: 8px 28px 20px;
+    }
+
+    .trust-logos-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .trust-logo-card {
+        height: 182px;
+    }
+
+    .trust-logo-card img {
+        max-height: 166px;
     }
 
     .trust-strip .trust-strip-container > h2 {
@@ -1567,6 +1997,14 @@ footer ul li a:hover {
 }
 
 @media (max-width: 640px) {
+    .trust-slider-desktop {
+        display: none;
+    }
+
+    .trust-slider-mobile {
+        display: block;
+    }
+
     .trust-strip {
         padding: 20px 0;
     }
@@ -1583,11 +2021,46 @@ footer ul li a:hover {
         margin-top: 8px;
     }
 
-    .trust-logos-banner {
-        border-left: none;
-        border-right: none;
-        border-radius: 0;
-        box-shadow: none;
+    .trust-slide {
+        padding: 8px 14px 18px;
+    }
+
+    .trust-logos-grid {
+        gap: 14px;
+    }
+
+    .trust-logos-grid-single {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        max-width: 320px;
+        margin: 0 auto;
+    }
+
+    .trust-logos-grid-single .trust-logo-card {
+        width: 100%;
+    }
+
+    .trust-logo-card {
+        height: 146px;
+        padding: 0;
+    }
+
+    .trust-logo-card img {
+        max-height: 130px;
+    }
+
+    .trust-control {
+        width: 34px;
+        height: 34px;
+        font-size: 1rem;
+    }
+
+    .trust-control.prev {
+        left: 6px;
+    }
+
+    .trust-control.next {
+        right: 6px;
     }
 }
 
@@ -1891,20 +2364,20 @@ h2::after {
 .flexibles{
 
     background:linear-gradient(rgba(31, 66, 94, 0.7), rgba(31, 66, 94, 0.7)),
-    url('../assets/images/productos_flexibles.png') no-repeat center center/cover;
+    url('../assets/images/productos_flexibles.webp') no-repeat center center/cover;
 
 }
 
 .termoformados{
 
     background:linear-gradient(rgba(31, 66, 94, 0.7), rgba(31, 66, 94, 0.7)),
-    url('../assets/images/termoformados.jpg') no-repeat center center/cover;
+    url('../assets/images/termoformados.webp') no-repeat center center/cover;
 
 }
 .carnicos{
 
     background:linear-gradient(rgba(31, 66, 94, 0.7), rgba(31, 66, 94, 0.7)),
-    url('../assets/images/carnicos.jpg') no-repeat center center/cover;
+    url('../assets/images/carnicos.webp') no-repeat center center/cover;
 
 }
 
@@ -3746,5 +4219,3 @@ h2::after {
         text-align: center;
     }
 }
-
-

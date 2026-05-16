@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Universo Mercantil - Líderes en empaques industriales en Colombia. Ofrecemos empaques flexibles, termoformados y fundas para cárnicos con más de 25 años de experiencia.">
+    <meta name="description" content="Universo Mercantil SAS - Líderes en empaques industriales en Colombia. Ofrecemos empaques flexibles, termoformados y fundas para cárnicos con más de 25 años de experiencia.">
     <meta name="keywords" content="empaques industriales, empaques flexibles, termoformados, fundas cárnicos, packaging Colombia">
-    <meta name="author" content="Universo Mercantil">
+    <meta name="author" content="Universo Mercantil SAS">
     <link rel="stylesheet" href="./styles/styles.css">
+    <link rel="icon" href="assets/logo.webp" type="image/webp">
+    <link rel="shortcut icon" href="assets/logo.webp" type="image/webp">
     
-    <title>Universo Mercantil - Empaques Industriales de Calidad</title>
+    <title>Universo Mercantil SAS - Empaques Industriales de Calidad</title>
 </head>
 <body>
 
@@ -19,15 +21,22 @@
             <div class="hero-track">
                 <article class="hero-slide is-active">
                     <picture>
-                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_movil.jpg">
-                        <img src="assets/images/banners/escritorio/hero_pc.jpg" alt="Portafolio de empaques flexibles y termoformados para diferentes industrias">
+                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_movil.webp">
+                        <img src="assets/images/banners/escritorio/hero_pc.webp" alt="Portafolio de empaques flexibles y termoformados para diferentes industrias">
                     </picture>
                 </article>
 
                 <article class="hero-slide">
                     <picture>
-                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_2_movil.jpg">
-                        <img src="assets/images/banners/escritorio/hero_2_pc.jpg" alt="Soluciones de empaque industrial para alimentos y cárnicos">
+                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_2_movil.webp">
+                        <img src="assets/images/banners/escritorio/hero_2_pc.webp" alt="Soluciones de empaque industrial para alimentos y cárnicos">
+                    </picture>
+                </article>
+
+                <article class="hero-slide">
+                    <picture>
+                        <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_3_movil.webp">
+                        <img src="assets/images/banners/escritorio/hero_3_pc.webp" alt="Empaques industriales para mejorar conservacion, presencia y rotacion de producto">
                     </picture>
                 </article>
             </div>
@@ -38,6 +47,7 @@
             <div class="hero-indicators" aria-label="Selector de imagen hero">
                 <button class="hero-dot is-active" type="button" aria-label="Mostrar imagen 1" aria-current="true"></button>
                 <button class="hero-dot" type="button" aria-label="Mostrar imagen 2" aria-current="false"></button>
+                <button class="hero-dot" type="button" aria-label="Mostrar imagen 3" aria-current="false"></button>
             </div>
         </div>
     </section>
@@ -228,8 +238,91 @@
     <section class="trust-strip" aria-label="Confianza y respaldo">
         <div class="trust-strip-container">
                 <h2>Empresas que confían en nosotros</h2>
-            <div class="trust-logos-banner">
-                <img src="assets/images/banners/escritorio/marcas_pc.jpg" alt="Marcas que confian en Universo Mercantil" loading="lazy">
+            <div class="trust-slider trust-slider-desktop" data-trust-slider aria-label="Carrusel de empresas aliadas en escritorio">
+                <div class="trust-track">
+                    <article class="trust-slide is-active">
+                        <div class="trust-logos-grid">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/artesanal_logo.png" alt="Logo empresa Artesanal" loading="lazy">
+                            </figure>
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/enso_logo.png" alt="Logo empresa Enso" loading="lazy">
+                            </figure>
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/gualilo_logo.png" alt="Logo empresa Gualilo" loading="lazy">
+                            </figure>
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/identico_logo.png" alt="Logo empresa Identico" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                    <article class="trust-slide">
+                        <div class="trust-logos-grid trust-logos-grid-single">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/mesa_logo.png" alt="Logo empresa Mesa" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                </div>
+
+                <button class="trust-control prev" type="button" aria-label="Slide anterior">&#10094;</button>
+                <button class="trust-control next" type="button" aria-label="Slide siguiente">&#10095;</button>
+
+                <div class="trust-indicators" aria-label="Selector de slides de marcas">
+                    <button class="trust-dot is-active" type="button" aria-label="Mostrar slide 1" aria-current="true"></button>
+                    <button class="trust-dot" type="button" aria-label="Mostrar slide 2" aria-current="false"></button>
+                </div>
+            </div>
+
+            <div class="trust-slider trust-slider-mobile" data-trust-slider aria-label="Carrusel de empresas aliadas en movil">
+                <div class="trust-track">
+                    <article class="trust-slide is-active">
+                        <div class="trust-logos-grid trust-logos-grid-single">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/artesanal_logo.png" alt="Logo empresa Artesanal" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                    <article class="trust-slide">
+                        <div class="trust-logos-grid trust-logos-grid-single">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/enso_logo.png" alt="Logo empresa Enso" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                    <article class="trust-slide">
+                        <div class="trust-logos-grid trust-logos-grid-single">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/gualilo_logo.png" alt="Logo empresa Gualilo" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                    <article class="trust-slide">
+                        <div class="trust-logos-grid trust-logos-grid-single">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/identico_logo.png" alt="Logo empresa Identico" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                    <article class="trust-slide">
+                        <div class="trust-logos-grid trust-logos-grid-single">
+                            <figure class="trust-logo-card">
+                                <img src="assets/images/empresas/mesa_logo.png" alt="Logo empresa Mesa" loading="lazy">
+                            </figure>
+                        </div>
+                    </article>
+                </div>
+
+                <button class="trust-control prev" type="button" aria-label="Slide anterior">&#10094;</button>
+                <button class="trust-control next" type="button" aria-label="Slide siguiente">&#10095;</button>
+
+                <div class="trust-indicators" aria-label="Selector de slides de marcas">
+                    <button class="trust-dot is-active" type="button" aria-label="Mostrar slide 1" aria-current="true"></button>
+                    <button class="trust-dot" type="button" aria-label="Mostrar slide 2" aria-current="false"></button>
+                    <button class="trust-dot" type="button" aria-label="Mostrar slide 3" aria-current="false"></button>
+                    <button class="trust-dot" type="button" aria-label="Mostrar slide 4" aria-current="false"></button>
+                    <button class="trust-dot" type="button" aria-label="Mostrar slide 5" aria-current="false"></button>
+                </div>
             </div>
         </div>
     </section>
@@ -298,4 +391,3 @@
     <script src="./scripts/animations.js"></script>
 </body>
 </html>
-

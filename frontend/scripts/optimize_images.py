@@ -49,8 +49,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--root",
-        default="assets/images",
-        help="Root directory to scan. Default: assets/images",
+        default="frontend/assets/images",
+        help="Root directory to scan. Default: frontend/assets/images",
     )
     parser.add_argument(
         "--dry-run",
