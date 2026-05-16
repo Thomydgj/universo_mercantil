@@ -475,10 +475,22 @@ header{
 
 .estadisticas-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 40px;
     max-width: 1200px;
     margin: 0 auto;
+}
+
+@media (max-width: 1200px) {
+    .estadisticas-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .estadisticas-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 .estadistica-item {
@@ -522,6 +534,13 @@ header{
     gap: 35px;
     max-width: 1300px;
     margin: 50px auto 0;
+}
+
+@media (max-width: 1649px) and (min-width: 769px) {
+    .valores-grid,
+    .ventajas-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .ventaja-item {
@@ -1136,6 +1155,7 @@ footer{
     line-height: 1.6;
     opacity: 0.92;
     max-width: 320px;
+    text-align: justify;
 }
 
 .footer-links h3,
@@ -1188,9 +1208,10 @@ footer ul li a:hover {
     font-weight: 700;
     font-size: 1.5rem;
     color: #ffffff;
+    text-align: cet;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1320px) {
     .header-shell {
         min-height: 88px;
         padding-left: 5%;
@@ -1551,6 +1572,7 @@ footer ul li a:hover {
     color: #034d99;
     margin-bottom: 1.35rem;
     line-height: 1.06;
+    text-align: center;
 }
 
 .presentacion-subtitulo {

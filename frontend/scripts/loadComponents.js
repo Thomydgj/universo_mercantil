@@ -13,8 +13,8 @@
         <img class="logo-image" src="assets/logo.webp" alt="Logo Universo Mercantil" loading="eager" decoding="async">
       </span>
       <span class="logo-text-wrap">
-        <span class="logo-text">Universo Mercantil</span>
-        <span class="logo-subtext">Empaques industriales</span>
+        <span class="logo-text">Universo Mercantil S.A.S</span>
+        <span class="logo-subtext">Distribuciones</span>
       </span>
     </a>
 
