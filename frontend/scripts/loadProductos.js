@@ -1,4 +1,8 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  if (typeof cargarManifestImagenesNuevas === "function") {
+    await cargarManifestImagenesNuevas();
+  }
+
   const container = document.getElementById("container-productos");
   const template = document.getElementById("template-producto");
   const categoriaActualEl = document.getElementById("categoria-actual");
@@ -94,8 +98,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // Renderiza las tarjetas
   productosFiltrados.forEach(p => {
     const card = template.content.cloneNode(true);
-    card.querySelector("a").href = `detalles.html?id=${p.id}`;
-    card.querySelector("img").src = p.imagenes[0];
+    const paramsDetalle = new URLSearchParams();
+    paramsDetalle.set("id", p.id);
+    if (categoriaSeleccionada) {
+      paramsDetalle.set("categoria", categoriaSeleccionada);
+    }
+
+    const imagenesProducto = typeof obtenerImagenesProductoPorCategoria === "function"
+      ? obtenerImagenesProductoPorCategoria(p, categoriaSeleccionada)
+      : (typeof obtenerTodasImagenesProducto === "function" ? obtenerTodasImagenesProducto(p) : []);
+    const imagenPrincipal = Array.isArray(imagenesProducto) && imagenesProducto.length
+      ? imagenesProducto[0]
+      : "";
+
+    card.querySelector("a").href = `detalles.html?${paramsDetalle.toString()}`;
+    card.querySelector("img").src = imagenPrincipal;
     card.querySelector("img").alt = p.nombre;
     card.querySelector("img").loading = "lazy";
     card.querySelector(".nombre-producto").textContent = p.nombre;

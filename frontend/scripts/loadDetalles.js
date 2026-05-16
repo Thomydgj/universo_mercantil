@@ -1,3 +1,8 @@
+document.addEventListener("DOMContentLoaded", async () => {
+if (typeof cargarManifestImagenesNuevas === "function") {
+  await cargarManifestImagenesNuevas();
+}
+
 // Selecciona el contenedor y el template
 const container = document.getElementById("container-detalles-producto");
 const template = document.getElementById("template-detalle");
@@ -17,6 +22,7 @@ const notify = (message, type) => {
 // Obtiene el parámetro "id" de la URL (ejemplo: producto.html?id=amipak1)
 const params = new URLSearchParams(window.location.search);
 const idSeleccionado = params.get("id");
+const categoriaContexto = params.get("categoria");
 
 // Busca el producto en el array productos (definido en productos.js)
 const producto = productos.find(p => p.id === idSeleccionado);
@@ -73,13 +79,13 @@ if (producto) {
   const precioNodo = card.querySelector(".precio-producto");
   const referenciaNodo = card.querySelector(".detalle-referencia");
 
-  const categoriaPrincipal = producto.categorias && producto.categorias.length
-    ? producto.categorias[0]
-    : null;
+  const categoriasProducto = Array.isArray(producto.categorias) ? producto.categorias : [];
+  const categoriaValida = categoriaContexto && categoriasProducto.includes(categoriaContexto);
+  const categoriaPrincipal = categoriaValida ? categoriaContexto : null;
 
   const categoriaNombre = categoriaPrincipal
     ? (nombresCategorias[categoriaPrincipal] || categoriaPrincipal)
-    : "General";
+    : "Todas las categorias";
 
   card.querySelector(".detalle-categoria").textContent = `Categoria: ${categoriaNombre}`;
 
@@ -189,12 +195,27 @@ if (producto) {
   }
 
   function obtenerImagenesActivas(variante) {
-    if (variante && Array.isArray(variante.imagenes) && variante.imagenes.length) {
-      return variante.imagenes;
+    if (categoriaValida && typeof obtenerImagenesProductoPorCategoria === "function") {
+      const imagenesPorCategoria = obtenerImagenesProductoPorCategoria(producto, categoriaContexto);
+      if (Array.isArray(imagenesPorCategoria) && imagenesPorCategoria.length) {
+        return imagenesPorCategoria;
+      }
     }
-    if (Array.isArray(producto.imagenes) && producto.imagenes.length) {
-      return producto.imagenes;
+
+    if (!categoriaValida && typeof obtenerTodasImagenesProducto === "function") {
+      const imagenesConsolidadas = obtenerTodasImagenesProducto(producto);
+      if (Array.isArray(imagenesConsolidadas) && imagenesConsolidadas.length) {
+        return imagenesConsolidadas;
+      }
     }
+
+    if (typeof obtenerTodasImagenesProducto === "function") {
+      const imagenesConsolidadas = obtenerTodasImagenesProducto(producto);
+      if (Array.isArray(imagenesConsolidadas) && imagenesConsolidadas.length) {
+        return imagenesConsolidadas;
+      }
+    }
+
     return [];
   }
 
@@ -395,4 +416,5 @@ if (producto) {
     detalleSubtitulo.textContent = "No encontramos el producto solicitado. Explora otras opciones del catalogo.";
   }
 }
+});
 

@@ -1352,6 +1352,8 @@ footer ul li a:hover {
 .hero-carrusel {
     position: relative;
     overflow: hidden;
+    max-width: 1920px;
+    margin: 0 auto;
 }
 
 .hero-track {
@@ -1363,6 +1365,7 @@ footer ul li a:hover {
 .hero-slide {
     min-width: 100%;
     flex: 0 0 100%;
+    aspect-ratio: 1920 / 735;
 }
 
 .hero-slide picture,
@@ -1372,7 +1375,7 @@ footer ul li a:hover {
 }
 
 .hero-slide img {
-    height: clamp(240px, 44vw, 620px);
+    height: 100%;
     object-fit: cover;
 }
 

@@ -1,0 +1,258 @@
+{
+  "amipak": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Amipak/Amipak1.webp",
+      "assets/images/producto/Carnicos/Amipak/Amipak2.webp",
+      "assets/images/producto/Carnicos/Amipak/Amipak3.webp",
+      "assets/images/producto/Carnicos/Amipak/Amipak4.webp",
+      "assets/images/producto/Carnicos/Amipak/Amipak5.webp"
+    ]
+  },
+  "bolsa-flex-up-con-zipper": {
+    "cafe-chocolate": [
+      "assets/images/producto/Cafe y Chocolate/Bolsa Flex-Up con Zipper/Zipper1.webp",
+      "assets/images/producto/Cafe y Chocolate/Bolsa Flex-Up con Zipper/Zipper2.webp",
+      "assets/images/producto/Cafe y Chocolate/Bolsa Flex-Up con Zipper/Zipper3.webp",
+      "assets/images/producto/Cafe y Chocolate/Bolsa Flex-Up con Zipper/Zipper4.webp"
+    ]
+  },
+  "bolsa-plana": {
+    "alimentos-preparados": [
+      "assets/images/producto/Alimentos Preparados/Bolsa Plana/Plana1.webp",
+      "assets/images/producto/Alimentos Preparados/Bolsa Plana/Plana2.webp",
+      "assets/images/producto/Alimentos Preparados/Bolsa Plana/Plana3.webp",
+      "assets/images/producto/Alimentos Preparados/Bolsa Plana/Plana4.webp",
+      "assets/images/producto/Alimentos Preparados/Bolsa Plana/Plana5.webp"
+    ],
+    "carnicos": [
+      "assets/images/producto/Carnicos/Bolsa Plana/Plana1.webp",
+      "assets/images/producto/Carnicos/Bolsa Plana/Plana2.webp",
+      "assets/images/producto/Carnicos/Bolsa Plana/Plana3.webp",
+      "assets/images/producto/Carnicos/Bolsa Plana/Plana4.webp",
+      "assets/images/producto/Carnicos/Bolsa Plana/Plana5.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Bolsa Plana/Plana1.webp",
+      "assets/images/producto/Panadería y Reportería/Bolsa Plana/Plana2.webp",
+      "assets/images/producto/Panadería y Reportería/Bolsa Plana/Plana3.webp",
+      "assets/images/producto/Panadería y Reportería/Bolsa Plana/Plana4.webp"
+    ],
+    "snacks": [
+      "assets/images/producto/Snacks y Cereales/Bolsa Plana/Plana1.webp",
+      "assets/images/producto/Snacks y Cereales/Bolsa Plana/Plana2.webp",
+      "assets/images/producto/Snacks y Cereales/Bolsa Plana/Plana3.webp",
+      "assets/images/producto/Snacks y Cereales/Bolsa Plana/Plana4.webp",
+      "assets/images/producto/Snacks y Cereales/Bolsa Plana/Plana5.webp",
+      "assets/images/producto/Snacks y Cereales/Bolsa Plana/Plana6.webp"
+    ]
+  },
+  "bolsa-selle-ventral": {
+    "alimentos-preparados": [
+      "assets/images/producto/Alimentos Preparados/Bolsa Selle Ventral/SelleVentral1.webp",
+      "assets/images/producto/Alimentos Preparados/Bolsa Selle Ventral/SelleVentral2.webp"
+    ],
+    "cafe-chocolate": [
+      "assets/images/producto/Cafe y Chocolate/Bolsa Selle Ventral/SelleVentral1.webp",
+      "assets/images/producto/Cafe y Chocolate/Bolsa Selle Ventral/SelleVentral2.webp"
+    ]
+  },
+  "celulosa": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Celulosa/Celulosa1.webp",
+      "assets/images/producto/Carnicos/Celulosa/Celulosa2.webp",
+      "assets/images/producto/Carnicos/Celulosa/Celulosa3.webp",
+      "assets/images/producto/Carnicos/Celulosa/Celulosa4.webp",
+      "assets/images/producto/Carnicos/Celulosa/Celulosa5.webp"
+    ]
+  },
+  "colageno": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Colageno/Colageno1.webp",
+      "assets/images/producto/Carnicos/Colageno/Colageno2.webp",
+      "assets/images/producto/Carnicos/Colageno/Colageno3.webp",
+      "assets/images/producto/Carnicos/Colageno/Colageno4.webp",
+      "assets/images/producto/Carnicos/Colageno/Colageno5.webp"
+    ]
+  },
+  "fibrosa": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Fibrosa/Fibrosa1.webp",
+      "assets/images/producto/Carnicos/Fibrosa/Fibrosa2.webp",
+      "assets/images/producto/Carnicos/Fibrosa/Fibrosa3.webp",
+      "assets/images/producto/Carnicos/Fibrosa/Fibrosa4.webp",
+      "assets/images/producto/Carnicos/Fibrosa/Fibrosa5.webp"
+    ]
+  },
+  "flex-up": {
+    "alimentos-preparados": [
+      "assets/images/producto/Alimentos Preparados/Flex-Up/FlexUp1.webp",
+      "assets/images/producto/Alimentos Preparados/Flex-Up/FlexUp2.webp",
+      "assets/images/producto/Alimentos Preparados/Flex-Up/FlexUp3.webp",
+      "assets/images/producto/Alimentos Preparados/Flex-Up/FlexUp4.webp",
+      "assets/images/producto/Alimentos Preparados/Flex-Up/FlexUp5.webp"
+    ],
+    "cafe-chocolate": [
+      "assets/images/producto/Cafe y Chocolate/Flex-Up/FlexUp1.webp",
+      "assets/images/producto/Cafe y Chocolate/Flex-Up/FlexUp2.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Flex-Up/FlexUp1.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up/FlexUp2.webp"
+    ]
+  },
+  "flex-up-con-ventana": {
+    "mascotas": [
+      "assets/images/producto/Mascotas/Flex-Up con Ventana/Ventana1.webp",
+      "assets/images/producto/Mascotas/Flex-Up con Ventana/Ventana2.webp",
+      "assets/images/producto/Mascotas/Flex-Up con Ventana/Ventana3.webp",
+      "assets/images/producto/Mascotas/Flex-Up con Ventana/Ventana4.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana1.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana2.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana3.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana4.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana5.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana6.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana7.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Ventana/Ventana8.webp"
+    ],
+    "snacks": [
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana1.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana2.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana3.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana4.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana5.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana6.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana7.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Ventana/Ventana8.webp"
+    ]
+  },
+  "flex-up-forma": {
+    "mascotas": [
+      "assets/images/producto/Mascotas/Flex.Up con Forma/Forma1.webp",
+      "assets/images/producto/Mascotas/Flex.Up con Forma/Forma2.webp",
+      "assets/images/producto/Mascotas/Flex.Up con Forma/Forma3.webp",
+      "assets/images/producto/Mascotas/Flex.Up con Forma/Forma4.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Forma/FlexUpForma1.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Forma/FlexUpForma2.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Forma/FlexUpForma3.webp",
+      "assets/images/producto/Panadería y Reportería/Flex-Up con Forma/FlexUpForma4.webp"
+    ],
+    "snacks": [
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Forma/FlexUpForma1.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Forma/FlexUpForma2.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Forma/FlexUpForma3.webp",
+      "assets/images/producto/Snacks y Cereales/Flex-Up con Forma/FlexUpForma4.webp"
+    ]
+  },
+  "flow-pack-4-selles": {
+    "cafe-chocolate": [
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/CuatroSelles1.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/CuatroSelles2.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/CuatroSelles3.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/CuatroSelles4.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/CuatroSelles5.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/FP4Selles1.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/FP4Selles2.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/FP4Selles3.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/FP4Selles4.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/FP4Selles5.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack 4 Selles/FP4Selles6.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Flow-Pack 4 Selles/FP4Selles1.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack 4 Selles/FP4Selles2.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack 4 Selles/FP4Selles3.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack 4 Selles/FP4Selles4.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack 4 Selles/FP4Selles5.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack 4 Selles/FP4Selles6.webp"
+    ],
+    "snacks": [
+      "assets/images/producto/Snacks y Cereales/Flow-Pack 4 Selles/FP4Selles1.webp",
+      "assets/images/producto/Snacks y Cereales/Flow-Pack 4 Selles/FP4Selles2.webp",
+      "assets/images/producto/Snacks y Cereales/Flow-Pack 4 Selles/FP4Selles3.webp",
+      "assets/images/producto/Snacks y Cereales/Flow-Pack 4 Selles/FP4Selles4.webp",
+      "assets/images/producto/Snacks y Cereales/Flow-Pack 4 Selles/FP4Selles5.webp",
+      "assets/images/producto/Snacks y Cereales/Flow-Pack 4 Selles/FP4Selles6.webp"
+    ]
+  },
+  "flow-pack-selle-ventral": {
+    "cafe-chocolate": [
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack Selle Ventral/FPSelleVentral1.webp",
+      "assets/images/producto/Cafe y Chocolate/Flow-Pack Selle Ventral/FPSelleVentral2.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Flow-Pack Selle Ventral/SelleVentral1.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack Selle Ventral/SelleVentral2.webp",
+      "assets/images/producto/Panadería y Reportería/Flow-Pack Selle Ventral/SelleVentral3.webp"
+    ]
+  },
+  "funda-plastica-multiflex": {
+    "mascotas": [
+      "assets/images/producto/Mascotas/Funda Plástica Multiflex/Multiflex1.webp",
+      "assets/images/producto/Mascotas/Funda Plástica Multiflex/Multiflex2.webp"
+    ]
+  },
+  "multibarrera": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Multibarrera/Multibarrera1.webp",
+      "assets/images/producto/Carnicos/Multibarrera/Multibarrera2.webp",
+      "assets/images/producto/Carnicos/Multibarrera/Multibarrera3.webp"
+    ]
+  },
+  "multiflex": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Multiflex/Multiflex1.webp",
+      "assets/images/producto/Carnicos/Multiflex/Multiflex2.webp",
+      "assets/images/producto/Carnicos/Multiflex/Multiflex3.webp",
+      "assets/images/producto/Carnicos/Multiflex/Multiflex4.webp",
+      "assets/images/producto/Carnicos/Multiflex/Multiflex5.webp"
+    ]
+  },
+  "termoflex": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Termoflex/Termoflex1.webp",
+      "assets/images/producto/Carnicos/Termoflex/Termoflex2.webp",
+      "assets/images/producto/Carnicos/Termoflex/Termoflex3.webp",
+      "assets/images/producto/Carnicos/Termoflex/Termoflex4.webp",
+      "assets/images/producto/Carnicos/Termoflex/Termoflex5.webp",
+      "assets/images/producto/Carnicos/Termoflex/Termoflex6.webp"
+    ]
+  },
+  "termoformados": {
+    "alimentos-preparados": [
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados1.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados2.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados3.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados4.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados5.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados6.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados7.webp",
+      "assets/images/producto/Alimentos Preparados/Termoformados/Termoformados8.webp"
+    ],
+    "cafe-chocolate": [
+      "assets/images/producto/Cafe y Chocolate/Termoformados/Termoformados1.webp",
+      "assets/images/producto/Cafe y Chocolate/Termoformados/Termoformados2.webp",
+      "assets/images/producto/Cafe y Chocolate/Termoformados/Termoformados3.webp",
+      "assets/images/producto/Cafe y Chocolate/Termoformados/Termoformados4.webp",
+      "assets/images/producto/Cafe y Chocolate/Termoformados/Termoformados5.webp",
+      "assets/images/producto/Cafe y Chocolate/Termoformados/Termoformados6.webp"
+    ],
+    "panaderia": [
+      "assets/images/producto/Panadería y Reportería/Termoformados/Termo1.webp",
+      "assets/images/producto/Panadería y Reportería/Termoformados/Termo2.webp",
+      "assets/images/producto/Panadería y Reportería/Termoformados/Termo3.webp",
+      "assets/images/producto/Panadería y Reportería/Termoformados/Termo4.webp"
+    ]
+  },
+  "tripa-natural-cerdo": {
+    "carnicos": [
+      "assets/images/producto/Carnicos/Tripa Natural Cerdo/Tripa1.webp",
+      "assets/images/producto/Carnicos/Tripa Natural Cerdo/Tripa2.webp",
+      "assets/images/producto/Carnicos/Tripa Natural Cerdo/Tripa3.webp"
+    ]
+  }
+}
