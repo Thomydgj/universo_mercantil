@@ -19,7 +19,6 @@
             <p id="detalle-breadcrumb" class="catalogo-breadcrumb"><a href="index.html">Inicio</a> / <a href="productos.html">Productos</a> / Detalle</p>
             <h1 id="detalle-titulo">Detalle del Producto</h1>
             <div class="decorative-line"></div>
-            <p id="detalle-subtitulo" class="catalogo-descripcion">Informacion tecnica y comercial para ayudarte a elegir la mejor solucion de empaque.</p>
         </section>
 
         <section id="container-detalles-producto" class="container-detalles-producto">
@@ -40,44 +39,31 @@
 
                     </div>
 
-                    <div class="selector-variante-wrap" hidden>
-                        <p class="selector-variante-titulo">Variantes:</p>
-                        <div class="selector-variante-grupo selector-tamano-grupo" hidden>
-                            <label for="variante-tamano" class="selector-variante-label selector-tamano-label">Tamano</label>
-                            <select id="variante-tamano" class="selector-variante selector-tamano"></select>
-                        </div>
-                        <div class="selector-variante-grupo selector-color-grupo" hidden>
-                            <label for="variante-color" class="selector-variante-label selector-color-label">Color</label>
-                            <select id="variante-color" class="selector-variante selector-color"></select>
-                        </div>
-                        <p class="selector-variante-ayuda" hidden></p>
-                    </div>
-
                 </div>
 
                 <div class="detalles-texto">
+                    <p class="detalle-kicker">Guia de linea</p>
                     <h2 class="nombre-producto"></h2>
                     <div class="detalle-meta">
                         <span class="detalle-categoria"></span>
-                        <span class="detalle-referencia"></span>
+                        <span class="detalle-linea"></span>
                     </div>
                     <p class="descripcion-larga-producto"></p>
-                    <p class="precio-producto"></p>
 
-                    <ul class="detalle-beneficios">
-                        <li>Fabricacion con estandares de calidad consistentes</li>
-                        <li>Opciones para distintos canales y formatos de venta</li>
-                        <li>Asesoria tecnica para seleccionar la mejor alternativa</li>
-                    </ul>
+                    <div class="detalle-cta-wrap">
+                        <a class="btn-detalle-whatsapp" href="#" target="_blank" rel="noopener noreferrer">Asesoria por WhatsApp</a>
+                    </div>
 
-                    <div class="acciones-producto">
+                    <div class="detalle-paneles">
+                        <section class="detalle-panel">
+                            <h3>Ventajas clave</h3>
+                            <ul class="detalle-ventajas-lista"></ul>
+                        </section>
 
-                        <label for="cantidad">Cantidad:</label>
-                        <input type="number" id="cantidad" class="cantidad-producto" min="1" value="1">
-                        <button class="btn-agregar">Agregar al Carrito</button>
-                        <button class="btn-comprar">Comprar Ahora</button>
-                        <a class="btn-whatsapp" href="#" target="_blank" rel="noopener noreferrer">Consultar por WhatsApp</a>
-
+                        <section class="detalle-panel">
+                            <h3>Usos recomendados</h3>
+                            <div class="detalle-usos-lista"></div>
+                        </section>
                     </div>
 
                 </div>
@@ -87,6 +73,76 @@
             </template>
 
         </section>
+
+        <section class="detalle-catalogo-real" aria-labelledby="catalogo-real-titulo">
+            <div class="detalle-catalogo-real-head">
+                <h2 id="catalogo-real-titulo">Catalogo comercial</h2>
+                <p id="catalogo-real-status" class="catalogo-real-status">Consultando referencias...</p>
+            </div>
+
+            <div id="catalogo-real-filtros" class="catalogo-real-filtros" aria-label="Filtros del catalogo comercial"></div>
+
+            <div id="catalogo-real-container" class="catalogo-real-grid"></div>
+            <nav id="catalogo-real-pagination" class="catalogo-real-pagination" aria-label="Paginacion del catalogo comercial" hidden></nav>
+
+            <template id="template-siigo-item">
+                <article class="siigo-item-card">
+                    <div class="siigo-item-image" aria-label="Espacio para imagen del producto">Imagen pendiente</div>
+                    <div class="siigo-item-content">
+                        <h3 class="siigo-item-nombre"></h3>
+                        <p class="siigo-item-sku"></p>
+                        <p class="siigo-item-precio"></p>
+                        <p class="siigo-item-stock"></p>
+                        <div class="siigo-item-actions">
+                            <label>Cantidad</label>
+                            <input type="number" class="siigo-item-cantidad" min="1" value="1">
+                            <button type="button" class="siigo-item-agregar">Agregar al carrito</button>
+                            <button type="button" class="siigo-item-detalle">Ver detalle</button>
+                        </div>
+                    </div>
+                </article>
+            </template>
+        </section>
+
+        <div id="catalogo-item-modal" class="catalogo-item-modal" hidden aria-hidden="true">
+            <div class="catalogo-item-modal-backdrop" data-close-catalogo-modal></div>
+            <article class="catalogo-item-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="catalogo-modal-titulo">
+                <button type="button" id="catalogo-modal-close" class="catalogo-modal-close" aria-label="Cerrar detalle">×</button>
+
+                <div class="catalogo-modal-grid">
+                    <section class="catalogo-modal-media">
+                        <div class="catalogo-modal-main-wrap">
+                            <button type="button" id="catalogo-modal-prev" class="catalogo-modal-nav" aria-label="Imagen anterior">‹</button>
+                            <div class="catalogo-modal-main">
+                                <img id="catalogo-modal-image" src="" alt="Imagen de referencia" hidden>
+                                <p id="catalogo-modal-empty" class="catalogo-modal-empty">Imagen pendiente</p>
+                            </div>
+                            <button type="button" id="catalogo-modal-next" class="catalogo-modal-nav" aria-label="Siguiente imagen">›</button>
+                        </div>
+                        <div id="catalogo-modal-thumbs" class="catalogo-modal-thumbs" hidden></div>
+                    </section>
+
+                    <section class="catalogo-modal-info">
+                        <p class="catalogo-modal-kicker">Detalle de referencia</p>
+                        <h3 id="catalogo-modal-titulo"></h3>
+                        <div id="catalogo-modal-descripcion" class="catalogo-modal-descripcion" hidden></div>
+                        <p id="catalogo-modal-sku" class="catalogo-modal-sku"></p>
+                        <p id="catalogo-modal-precio" class="catalogo-modal-precio"></p>
+                        <p id="catalogo-modal-stock" class="catalogo-modal-stock"></p>
+
+                        <label class="catalogo-modal-cantidad-wrap" for="catalogo-modal-cantidad">
+                            Cantidad
+                            <input type="number" id="catalogo-modal-cantidad" min="1" value="1">
+                        </label>
+
+                        <div class="catalogo-modal-actions">
+                            <button type="button" id="catalogo-modal-agregar" class="catalogo-modal-btn agregar">Agregar al carrito</button>
+                            <button type="button" id="catalogo-modal-comprar" class="catalogo-modal-btn comprar">Comprar ahora</button>
+                        </div>
+                    </section>
+                </div>
+            </article>
+        </div>
 
         <section class="detalle-asesoria">
             <div class="detalle-asesoria-content">
@@ -107,6 +163,7 @@
     <script src="./scripts/loadComponents.js"></script>
     <script src="./scripts/uiFeedback.js"></script>
     <script src="./scripts/productos.js"></script>
+    <script src="./scripts/categorias.js"></script>
     <script src="./scripts/loadDetalles.js"></script>
 
 </body>

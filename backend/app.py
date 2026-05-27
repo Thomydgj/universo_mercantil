@@ -3,6 +3,7 @@ import hmac
 import html
 import json
 import logging
+import math
 import os
 import re
 import smtplib
@@ -17,7 +18,16 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
 
-load_dotenv()
+BACKEND_DIR = Path(__file__).resolve().parent
+ENV_PATH = BACKEND_DIR / ".env"
+ENV_EXAMPLE_PATH = BACKEND_DIR / ".env.example"
+
+if ENV_PATH.exists():
+    load_dotenv(ENV_PATH)
+elif ENV_EXAMPLE_PATH.exists():
+    load_dotenv(ENV_EXAMPLE_PATH)
+else:
+    load_dotenv()
 
 try:
     from .db_store import (
@@ -84,8 +94,35 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", "Universo Mercantil")
 EMAIL_LOGO_URL = (os.getenv("EMAIL_LOGO_URL") or "").strip()
 SUPPORT_EMAIL = (os.getenv("SUPPORT_EMAIL") or SMTP_FROM or "").strip()
 
+SIIGO_API_BASE_URL = (os.getenv("SIIGO_API_BASE_URL") or "https://api.siigo.com").rstrip("/")
+SIIGO_PRODUCTS_PATH = (os.getenv("SIIGO_PRODUCTS_PATH") or "/v1/products").strip()
+SIIGO_USERNAME = (os.getenv("SIIGO_USERNAME") or "").strip()
+SIIGO_ACCESS_KEY = (os.getenv("SIIGO_ACCESS_KEY") or "").strip()
+SIIGO_PARTNER_ID = (os.getenv("SIIGO_PARTNER_ID") or "").strip()
+SIIGO_REQUEST_TIMEOUT_SECONDS = float(os.getenv("SIIGO_REQUEST_TIMEOUT_SECONDS", "20"))
+SIIGO_TOKEN_SAFETY_SECONDS = int(os.getenv("SIIGO_TOKEN_SAFETY_SECONDS", "60"))
+SIIGO_MAX_PAGES = max(1, int(os.getenv("SIIGO_MAX_PAGES", "200")))
+SIIGO_FETCH_ALL_DEFAULT = (os.getenv("SIIGO_FETCH_ALL_DEFAULT", "true") or "true").strip().lower() in {
+    "1", "true", "yes", "y", "on"
+}
+SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT = (
+    os.getenv("SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT", "true") or "true"
+).strip().lower() in {
+    "1", "true", "yes", "y", "on"
+}
+_siigo_manifest_path_raw = (os.getenv("SIIGO_IMAGE_MANIFEST_PATH") or "../frontend/scripts/siigo_imagenes.json").strip()
+SIIGO_IMAGE_MANIFEST_PATH = Path(_siigo_manifest_path_raw).expanduser()
+if not SIIGO_IMAGE_MANIFEST_PATH.is_absolute():
+    SIIGO_IMAGE_MANIFEST_PATH = (BACKEND_DIR / SIIGO_IMAGE_MANIFEST_PATH).resolve()
+
 STORE_PATH = Path(__file__).resolve().parent / "orders_store.json"
 _request_window: dict[str, list[float]] = {}
+_siigo_token_cache: dict[str, float | str] = {"token": "", "expires_at": 0.0}
+_siigo_image_index_cache: dict[str, object] = {
+    "path": "",
+    "mtime": -1.0,
+    "index": None,
+}
 
 if DB_ENABLED:
     init_database()
@@ -105,6 +142,50 @@ def parse_int(value, default=0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def parse_bool(value, default=False) -> bool:
+    if value is None:
+        return default
+
+    if isinstance(value, bool):
+        return value
+
+    raw = str(value).strip().lower()
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    if raw in {"0", "false", "no", "n", "off"}:
+        return False
+
+    return default
+
+
+def parse_float(value, default=None) -> float | None:
+    if value is None or isinstance(value, bool):
+        return default
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, str):
+        cleaned = re.sub(r"[^\d,.-]", "", value.strip())
+        if not cleaned:
+            return default
+
+        if "," in cleaned and "." in cleaned:
+            if cleaned.rfind(",") > cleaned.rfind("."):
+                cleaned = cleaned.replace(".", "").replace(",", ".")
+            else:
+                cleaned = cleaned.replace(",", "")
+        elif "," in cleaned:
+            cleaned = cleaned.replace(",", ".")
+
+        try:
+            return float(cleaned)
+        except ValueError:
+            return default
+
+    return default
 
 
 def generate_reference() -> str:
@@ -188,6 +269,673 @@ def verify_api_key() -> bool:
 
     provided = (request.headers.get("X-Api-Key") or "").strip()
     return bool(provided) and hmac.compare_digest(provided, BACKEND_API_KEY)
+
+
+def siigo_is_configured() -> bool:
+    return bool(SIIGO_USERNAME and SIIGO_ACCESS_KEY)
+
+
+def siigo_build_url(path: str) -> str:
+    raw_path = (path or "").strip()
+    if raw_path.startswith(("http://", "https://")):
+        return raw_path
+
+    if not raw_path.startswith("/"):
+        raw_path = f"/{raw_path}" if raw_path else "/"
+
+    return f"{SIIGO_API_BASE_URL}{raw_path}"
+
+
+def siigo_extract_token(payload: dict) -> tuple[str, int]:
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    token = str((data or {}).get("access_token") or (data or {}).get("token") or "").strip()
+    expires_in = parse_int((data or {}).get("expires_in") or (data or {}).get("expires") or 3600, 3600)
+
+    if expires_in <= 0:
+        expires_in = 3600
+
+    return token, expires_in
+
+
+def siigo_fetch_token(*, force_refresh: bool = False) -> str:
+    now = time.time()
+    cached_token = str(_siigo_token_cache.get("token") or "").strip()
+    cached_expiry = float(_siigo_token_cache.get("expires_at") or 0)
+
+    if cached_token and not force_refresh and now < cached_expiry:
+        return cached_token
+
+    if not siigo_is_configured():
+        raise RuntimeError("siigo_not_configured")
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if SIIGO_PARTNER_ID:
+        headers["Partner-Id"] = SIIGO_PARTNER_ID
+
+    payload = {
+        "username": SIIGO_USERNAME,
+        "access_key": SIIGO_ACCESS_KEY,
+    }
+
+    try:
+        response = requests.post(
+            siigo_build_url("/auth"),
+            json=payload,
+            headers=headers,
+            timeout=SIIGO_REQUEST_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as exc:
+        logger.error("Error de red autenticando con Siigo: %s", exc)
+        raise RuntimeError("siigo_auth_request_failed") from exc
+
+    try:
+        response_payload = response.json() if response.text else {}
+    except ValueError:
+        response_payload = {}
+
+    if response.status_code >= 400:
+        logger.error("Error autenticando con Siigo (status=%s): %s", response.status_code, response_payload)
+        raise RuntimeError("siigo_auth_failed")
+
+    token, expires_in = siigo_extract_token(response_payload)
+    if not token:
+        logger.error("Siigo no devolvio token de acceso. Payload: %s", response_payload)
+        raise RuntimeError("siigo_auth_failed")
+
+    refresh_after = max(60, expires_in - SIIGO_TOKEN_SAFETY_SECONDS)
+    _siigo_token_cache["token"] = token
+    _siigo_token_cache["expires_at"] = now + refresh_after
+    return token
+
+
+def siigo_extract_items(payload) -> list[dict]:
+    if isinstance(payload, list):
+        return [entry for entry in payload if isinstance(entry, dict)]
+
+    if not isinstance(payload, dict):
+        return []
+
+    for key in ("results", "items", "data", "products"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [entry for entry in value if isinstance(entry, dict)]
+        if isinstance(value, dict):
+            nested = siigo_extract_items(value)
+            if nested or key in {"results", "items", "products"}:
+                return nested
+
+    for value in payload.values():
+        if isinstance(value, list) and value and all(isinstance(entry, dict) for entry in value):
+            return value
+
+    return []
+
+
+def siigo_find_first_number(node, keys: set[str]) -> float | None:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key.lower() in keys:
+                number = parse_float(value, None)
+                if number is not None:
+                    return number
+
+        for value in node.values():
+            nested = siigo_find_first_number(value, keys)
+            if nested is not None:
+                return nested
+
+    if isinstance(node, list):
+        for item in node:
+            nested = siigo_find_first_number(item, keys)
+            if nested is not None:
+                return nested
+
+    return None
+
+
+def siigo_extract_price(product: dict) -> int | None:
+    direct_price = siigo_find_first_number(
+        {
+            "price": product.get("price"),
+            "unit_price": product.get("unit_price"),
+            "sale_price": product.get("sale_price"),
+            "selling_price": product.get("selling_price"),
+        },
+        {"price", "unit_price", "sale_price", "selling_price"},
+    )
+
+    if direct_price is not None:
+        return max(0, int(round(direct_price)))
+
+    prices_source = {
+        "prices": product.get("prices"),
+        "price_list": product.get("price_list"),
+        "price_lists": product.get("price_lists"),
+        "price_data": product.get("price_data"),
+    }
+    nested_price = siigo_find_first_number(prices_source, {"price", "value", "amount", "unit_price"})
+    if nested_price is None:
+        return None
+
+    return max(0, int(round(nested_price)))
+
+
+def siigo_extract_stock(product: dict) -> int:
+    direct_stock = siigo_find_first_number(
+        {
+            "available_quantity": product.get("available_quantity"),
+            "quantity_available": product.get("quantity_available"),
+            "stock": product.get("stock"),
+            "quantity": product.get("quantity"),
+            "balance": product.get("balance"),
+        },
+        {"available_quantity", "quantity_available", "stock", "quantity", "balance"},
+    )
+
+    if direct_stock is not None:
+        return max(0, int(round(direct_stock)))
+
+    nested_stock = siigo_find_first_number(
+        {
+            "inventory": product.get("inventory"),
+            "inventories": product.get("inventories"),
+            "stock_control": product.get("stock_control"),
+            "warehouses": product.get("warehouses"),
+        },
+        {"available_quantity", "quantity_available", "stock", "quantity", "balance"},
+    )
+    if nested_stock is None:
+        return 0
+
+    return max(0, int(round(nested_stock)))
+
+
+SIIGO_CATEGORY_KEY_TERMS = {
+    "categor",
+    "group",
+    "grupo",
+    "famil",
+    "line",
+    "linea",
+    "clasif",
+    "segment",
+}
+
+
+def siigo_is_category_key(key: str) -> bool:
+    normalized = str(key or "").strip().lower()
+    return bool(normalized) and any(term in normalized for term in SIIGO_CATEGORY_KEY_TERMS)
+
+
+def siigo_extract_text_values(node, depth: int = 0) -> list[str]:
+    if depth > 4:
+        return []
+
+    values: list[str] = []
+
+    def push_text(raw_value) -> None:
+        text = re.sub(r"\s+", " ", str(raw_value or "")).strip()
+        if not text:
+            return
+        lowered = text.lower()
+        if lowered in {"none", "null", "true", "false"}:
+            return
+        if not re.search(r"[a-záéíóúüñ]", lowered):
+            return
+        values.append(text)
+
+    if isinstance(node, str):
+        push_text(node)
+        return values
+
+    if isinstance(node, (int, float, bool)):
+        return values
+
+    if isinstance(node, list):
+        for item in node:
+            values.extend(siigo_extract_text_values(item, depth + 1))
+        return values
+
+    if isinstance(node, dict):
+        preferred_keys = ("name", "nombre", "label", "value", "text", "title", "description", "descripcion")
+        for key in preferred_keys:
+            if key in node:
+                values.extend(siigo_extract_text_values(node.get(key), depth + 1))
+
+        if not values:
+            for key, value in node.items():
+                if str(key).lower() in {"id", "code", "codigo", "uuid"}:
+                    continue
+                values.extend(siigo_extract_text_values(value, depth + 1))
+
+    return values
+
+
+def siigo_extract_categories(product: dict) -> list[str]:
+    if not isinstance(product, dict):
+        return []
+
+    categories: list[str] = []
+    seen: set[str] = set()
+
+    def push_category(raw_value) -> None:
+        for text in siigo_extract_text_values(raw_value):
+            normalized = re.sub(r"\s+", " ", text).strip()
+            if not normalized:
+                continue
+            key = normalized.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            categories.append(normalized)
+
+    direct_keys = (
+        "category",
+        "categories",
+        "product_category",
+        "product_categories",
+        "category_name",
+        "group",
+        "groups",
+        "grupo",
+        "grupos",
+        "family",
+        "familia",
+        "line",
+        "linea",
+        "classification",
+        "clasificacion",
+    )
+
+    for key in direct_keys:
+        if key in product:
+            push_category(product.get(key))
+
+    container_keys = ("metadata", "meta", "custom_fields", "custom_data", "additional_fields", "attributes", "fields")
+    for container_key in container_keys:
+        container = product.get(container_key)
+        if isinstance(container, dict):
+            for key, value in container.items():
+                if siigo_is_category_key(key):
+                    push_category(value)
+        elif isinstance(container, list):
+            for entry in container:
+                if not isinstance(entry, dict):
+                    continue
+
+                key_hint = (
+                    entry.get("name")
+                    or entry.get("key")
+                    or entry.get("label")
+                    or entry.get("field")
+                    or ""
+                )
+                if siigo_is_category_key(str(key_hint)):
+                    push_category(entry.get("value") or entry.get("values") or entry)
+
+    def scan_category_keys(node, depth: int = 0) -> None:
+        if depth > 3:
+            return
+
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if siigo_is_category_key(key):
+                    push_category(value)
+
+                if isinstance(value, (dict, list)):
+                    scan_category_keys(value, depth + 1)
+
+        elif isinstance(node, list):
+            for entry in node[:20]:
+                scan_category_keys(entry, depth + 1)
+
+    scan_category_keys(product)
+    return categories
+
+
+def siigo_normalize_sku_key(value: object) -> str:
+    return str(value or "").strip().upper()
+
+
+def siigo_compact_sku_key(value: object) -> str:
+    return re.sub(r"[^A-Z0-9]", "", siigo_normalize_sku_key(value))
+
+
+def siigo_manifest_value_has_image(value) -> bool:
+    if isinstance(value, str):
+        return bool(value.strip())
+
+    if isinstance(value, list):
+        return any(siigo_manifest_value_has_image(entry) for entry in value)
+
+    if isinstance(value, dict):
+        priority_keys = ("imagen", "image", "src", "url", "imagenes", "images")
+        for key in priority_keys:
+            if key in value and siigo_manifest_value_has_image(value.get(key)):
+                return True
+        return any(siigo_manifest_value_has_image(entry) for entry in value.values())
+
+    return False
+
+
+def siigo_empty_image_index() -> dict[str, object]:
+    return {
+        "has_entries": False,
+        "by_sku": set(),
+        "by_compact_sku": set(),
+    }
+
+
+def siigo_build_image_index(payload) -> dict[str, object]:
+    image_index = siigo_empty_image_index()
+    by_sku: set[str] = set()
+    by_compact_sku: set[str] = set()
+
+    if not isinstance(payload, dict):
+        image_index["by_sku"] = by_sku
+        image_index["by_compact_sku"] = by_compact_sku
+        return image_index
+
+    for sku_raw, value in payload.items():
+        sku = siigo_normalize_sku_key(sku_raw)
+        if not sku or not siigo_manifest_value_has_image(value):
+            continue
+
+        by_sku.add(sku)
+        compact = siigo_compact_sku_key(sku)
+        if compact:
+            by_compact_sku.add(compact)
+
+    image_index["has_entries"] = bool(by_sku)
+    image_index["by_sku"] = by_sku
+    image_index["by_compact_sku"] = by_compact_sku
+    return image_index
+
+
+def siigo_get_image_index() -> dict[str, object]:
+    manifest_path = SIIGO_IMAGE_MANIFEST_PATH
+    default_index = siigo_empty_image_index()
+
+    if not manifest_path.exists():
+        return default_index
+
+    try:
+        stat = manifest_path.stat()
+    except OSError:
+        return default_index
+
+    cache_path = str(_siigo_image_index_cache.get("path") or "")
+    cache_mtime = float(_siigo_image_index_cache.get("mtime") or -1.0)
+    cache_index = _siigo_image_index_cache.get("index")
+
+    if cache_path == str(manifest_path) and cache_mtime == stat.st_mtime and isinstance(cache_index, dict):
+        return cache_index
+
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("No se pudo cargar manifest de imagenes Siigo (%s): %s", manifest_path, exc)
+        _siigo_image_index_cache["path"] = str(manifest_path)
+        _siigo_image_index_cache["mtime"] = stat.st_mtime
+        _siigo_image_index_cache["index"] = default_index
+        return default_index
+
+    image_index = siigo_build_image_index(payload)
+    _siigo_image_index_cache["path"] = str(manifest_path)
+    _siigo_image_index_cache["mtime"] = stat.st_mtime
+    _siigo_image_index_cache["index"] = image_index
+    return image_index
+
+
+def siigo_item_has_direct_image(item: dict) -> bool:
+    return bool(str(item.get("imagen") or "").strip())
+
+
+def siigo_item_has_image(item: dict, image_index: dict[str, object] | None = None) -> bool:
+    if siigo_item_has_direct_image(item):
+        return True
+
+    if not isinstance(image_index, dict):
+        return False
+
+    sku = siigo_normalize_sku_key(item.get("sku") or item.get("id"))
+    if not sku:
+        return False
+
+    by_sku = image_index.get("by_sku")
+    if isinstance(by_sku, set) and sku in by_sku:
+        return True
+
+    by_compact_sku = image_index.get("by_compact_sku")
+    compact = siigo_compact_sku_key(sku)
+    return bool(compact and isinstance(by_compact_sku, set) and compact in by_compact_sku)
+
+
+def siigo_normalize_product(product: dict) -> dict | None:
+    if not isinstance(product, dict):
+        return None
+
+    sku = str(
+        product.get("code")
+        or product.get("reference")
+        or product.get("sku")
+        or product.get("internal_code")
+        or product.get("id")
+        or ""
+    ).strip()
+    nombre = str(product.get("name") or product.get("description") or "").strip()
+
+    if not sku and not nombre:
+        return None
+
+    fallback_id = re.sub(r"[^a-zA-Z0-9]+", "-", (sku or nombre).lower()).strip("-") or "siigo-item"
+    categorias = siigo_extract_categories(product)
+    categoria = categorias[0] if categorias else ""
+
+    return {
+        "id": str(product.get("id") or fallback_id),
+        "sku": sku,
+        "nombre": nombre or sku or "Producto Siigo",
+        "precio": siigo_extract_price(product),
+        "cantidad": siigo_extract_stock(product),
+        "categoria": categoria,
+        "categorias": categorias,
+        "imagen": "",
+    }
+
+
+def siigo_matches_query(item: dict, query: str) -> bool:
+    normalized_query = (query or "").strip().lower()
+    if not normalized_query:
+        return True
+
+    haystack = f"{item.get('nombre', '')} {item.get('sku', '')} {item.get('categoria', '')}".lower()
+    terms = [term for term in normalized_query.split() if term]
+    return all(term in haystack for term in terms)
+
+
+def siigo_extract_pagination(payload: dict, fallback_page: int, fallback_page_size: int, items_count: int) -> dict:
+    pagination = payload.get("pagination") if isinstance(payload.get("pagination"), dict) else {}
+
+    page = parse_int(
+        pagination.get("page", payload.get("page", payload.get("current_page", fallback_page))),
+        fallback_page,
+    )
+    if page < 1:
+        page = fallback_page
+
+    effective_page_size = parse_int(
+        pagination.get("page_size", payload.get("page_size", payload.get("per_page", fallback_page_size))),
+        fallback_page_size,
+    )
+    if effective_page_size < 1:
+        effective_page_size = fallback_page_size
+
+    total_results = parse_int(
+        pagination.get("total_results", payload.get("total_results", payload.get("total", payload.get("count", -1)))),
+        -1,
+    )
+
+    total_pages = parse_int(
+        pagination.get("total_pages", payload.get("total_pages", payload.get("pages", -1))),
+        -1,
+    )
+    if total_pages < 0 and total_results >= 0 and effective_page_size > 0:
+        total_pages = max(1, math.ceil(total_results / effective_page_size))
+
+    next_page = parse_int(
+        pagination.get("next_page", payload.get("next_page", pagination.get("next", payload.get("next", -1)))),
+        -1,
+    )
+
+    raw_has_next = pagination.get("has_next", payload.get("has_next"))
+    has_next = raw_has_next if isinstance(raw_has_next, bool) else None
+
+    if has_next is None:
+        if next_page > page:
+            has_next = True
+        elif total_pages >= 0:
+            has_next = page < total_pages
+        elif total_results >= 0 and effective_page_size > 0:
+            has_next = (page * effective_page_size) < total_results
+        else:
+            has_next = items_count >= effective_page_size
+
+    return {
+        "page": page,
+        "page_size": effective_page_size,
+        "total_results": total_results,
+        "total_pages": total_pages,
+        "next_page": next_page,
+        "has_next": bool(has_next),
+    }
+
+
+def siigo_deduplicate_items(items: list[dict]) -> list[dict]:
+    unique = []
+    seen: set[tuple[str, str, str]] = set()
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        key = (
+            str(item.get("id") or "").strip().lower(),
+            str(item.get("sku") or "").strip().lower(),
+            str(item.get("nombre") or "").strip().lower(),
+        )
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique.append(item)
+
+    return unique
+
+
+def siigo_fetch_catalog_page(page: int, page_size: int) -> tuple[list[dict], dict]:
+    token = siigo_fetch_token()
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
+    if SIIGO_PARTNER_ID:
+        headers["Partner-Id"] = SIIGO_PARTNER_ID
+
+    params = {
+        "page": max(1, page),
+        "page_size": max(1, min(page_size, 200)),
+    }
+    url = siigo_build_url(SIIGO_PRODUCTS_PATH or "/v1/products")
+
+    response = None
+    response_payload = {}
+
+    for attempt in range(2):
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=SIIGO_REQUEST_TIMEOUT_SECONDS)
+        except requests.RequestException as exc:
+            logger.error("Error de red consultando catalogo de Siigo: %s", exc)
+            raise RuntimeError("siigo_products_request_failed") from exc
+
+        try:
+            response_payload = response.json() if response.text else {}
+        except ValueError:
+            response_payload = {}
+
+        if response.status_code in {401, 403} and attempt == 0:
+            token = siigo_fetch_token(force_refresh=True)
+            headers["Authorization"] = f"Bearer {token}"
+            continue
+
+        break
+
+    if not response or response.status_code >= 400:
+        status = response.status_code if response else "sin_respuesta"
+        logger.error("Error consultando catalogo Siigo (status=%s): %s", status, response_payload)
+        raise RuntimeError("siigo_products_request_failed")
+
+    raw_items = siigo_extract_items(response_payload)
+    normalized_items = []
+    for raw_item in raw_items:
+        mapped = siigo_normalize_product(raw_item)
+        if mapped:
+            normalized_items.append(mapped)
+
+    return normalized_items, response_payload
+
+
+def siigo_fetch_catalog(page: int, page_size: int, *, fetch_all: bool = False, max_pages: int | None = None) -> tuple[list[dict], dict]:
+    start_page = max(1, parse_int(page, 1))
+    safe_page_size = max(1, min(parse_int(page_size, 50), 200))
+    safe_max_pages = max(1, parse_int(max_pages, SIIGO_MAX_PAGES))
+
+    if not fetch_all:
+        return siigo_fetch_catalog_page(start_page, safe_page_size)
+
+    aggregated_items = []
+    last_payload = {}
+    visited_pages: set[int] = set()
+    current_page = start_page
+
+    while len(visited_pages) < safe_max_pages:
+        if current_page in visited_pages:
+            logger.warning("Se detecto bucle en paginacion de Siigo (pagina %s)", current_page)
+            break
+
+        visited_pages.add(current_page)
+        page_items, payload = siigo_fetch_catalog_page(current_page, safe_page_size)
+        aggregated_items.extend(page_items)
+        last_payload = payload if isinstance(payload, dict) else {}
+
+        page_info = siigo_extract_pagination(last_payload, current_page, safe_page_size, len(page_items))
+        if not page_info["has_next"]:
+            break
+
+        next_page = page_info["next_page"]
+        current_page = next_page if next_page > page_info["page"] else (page_info["page"] + 1)
+
+    if len(visited_pages) >= safe_max_pages:
+        logger.warning("Se alcanzo el limite maximo de paginas al consultar Siigo (%s)", safe_max_pages)
+
+    deduplicated = siigo_deduplicate_items(aggregated_items)
+    page_info = siigo_extract_pagination(last_payload, current_page, safe_page_size, 0)
+    total_results = page_info["total_results"]
+
+    synthetic_payload = dict(last_payload)
+    synthetic_payload["pagination"] = {
+        "page": start_page,
+        "page_size": safe_page_size,
+        "total_results": total_results if total_results >= 0 else len(deduplicated),
+        "fetched_pages": len(visited_pages),
+        "fetch_all": True,
+    }
+
+    return deduplicated, synthetic_payload
 
 
 def extract_signature_from_headers() -> str:
@@ -935,7 +1683,92 @@ def healthcheck():
         "ok": True,
         "service": "universo-mercantil-backend",
         "storage_mode": explain_storage_mode(),
+        "siigo_configured": siigo_is_configured(),
         "timestamp": now_iso(),
+    }), 200
+
+
+@app.route("/catalog/siigo", methods=["GET", "OPTIONS"])
+def catalogo_siigo():
+    if request.method == "OPTIONS":
+        return ("", 200)
+
+    if request_rate_limited("catalog-siigo"):
+        return make_error("Demasiadas solicitudes. Intenta nuevamente en unos segundos.", 429)
+
+    if not is_allowed_origin():
+        return make_error("Origen no permitido", 403)
+
+    if not verify_api_key():
+        return make_error("Acceso no autorizado", 401)
+
+    if not siigo_is_configured():
+        return make_error("Integracion de Siigo no configurada", 503)
+
+    page = max(1, parse_int(request.args.get("page"), 1))
+    page_size = max(1, min(parse_int(request.args.get("page_size"), 50), 200))
+    fetch_all = parse_bool(request.args.get("fetch_all"), SIIGO_FETCH_ALL_DEFAULT)
+    max_pages = max(1, min(parse_int(request.args.get("max_pages"), SIIGO_MAX_PAGES), SIIGO_MAX_PAGES))
+    query = (request.args.get("q") or "").strip()
+    hide_without_image = parse_bool(
+        request.args.get("hide_without_image"),
+        SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT,
+    )
+
+    try:
+        items, siigo_payload = siigo_fetch_catalog(page, page_size, fetch_all=fetch_all, max_pages=max_pages)
+    except RuntimeError as exc:
+        reason = str(exc)
+        if reason in {"siigo_auth_failed", "siigo_auth_request_failed"}:
+            return make_error("No fue posible autenticar con Siigo", 502)
+        if reason == "siigo_not_configured":
+            return make_error("Integracion de Siigo no configurada", 503)
+        return make_error("No fue posible consultar el catalogo de Siigo", 502)
+
+    filtered_items = [item for item in items if siigo_matches_query(item, query)]
+    items_before_image_filter = len(filtered_items)
+    hidden_without_image_count = 0
+    hide_without_image_applied = False
+    image_manifest_available = False
+
+    if hide_without_image:
+        image_index = siigo_get_image_index()
+        image_manifest_available = bool(image_index.get("has_entries"))
+        has_direct_images = any(siigo_item_has_direct_image(item) for item in filtered_items)
+
+        if image_manifest_available or has_direct_images:
+            filtered_items = [item for item in filtered_items if siigo_item_has_image(item, image_index)]
+            hidden_without_image_count = max(0, items_before_image_filter - len(filtered_items))
+            hide_without_image_applied = True
+        else:
+            logger.info(
+                "Filtro hide_without_image solicitado, pero no hay manifest de imagenes o rutas directas disponibles."
+            )
+
+    pagination_info = siigo_extract_pagination(siigo_payload or {}, page, page_size, len(items))
+    total = pagination_info["total_results"] if pagination_info["total_results"] >= 0 else len(items)
+    fetched_pages = parse_int(
+        (siigo_payload or {}).get("pagination", {}).get("fetched_pages") if isinstance((siigo_payload or {}).get("pagination"), dict) else 1,
+        1,
+    )
+
+    return jsonify({
+        "ok": True,
+        "source": "siigo",
+        "query": query,
+        "page": page,
+        "page_size": page_size,
+        "fetch_all": fetch_all,
+        "fetched_pages": fetched_pages,
+        "count": len(filtered_items),
+        "hide_without_image": hide_without_image,
+        "hide_without_image_applied": hide_without_image_applied,
+        "image_manifest_available": image_manifest_available,
+        "items_before_image_filter": items_before_image_filter,
+        "hidden_without_image_count": hidden_without_image_count,
+        "total": total,
+        "items": filtered_items,
+        "synced_at": now_iso(),
     }), 200
 
 

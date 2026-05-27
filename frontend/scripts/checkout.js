@@ -86,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const productId = item.id ? String(item.id) : "";
       return {
         id: productId,
-        sku: item.cartKey || (item.varianteId ? `${productId}::${item.varianteId}` : productId),
+        sku: item.sku || item.cartKey || (item.varianteId ? `${productId}::${item.varianteId}` : productId),
         nombre: item.nombre,
         variante_id: item.varianteId || null,
         variante_nombre: item.varianteNombre || null,

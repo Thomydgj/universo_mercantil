@@ -31,6 +31,7 @@ pip install -r backend/requirements.txt
 - Copiar `backend/.env.example` como `backend/.env`
 - Completar valores reales de Wompi, SMTP y correos destino
 - Para activar base de datos, completar `DATABASE_URL`
+- Para catalogo en tiempo real desde Siigo, completar `SIIGO_USERNAME` y `SIIGO_ACCESS_KEY`
 
 3. Ejecutar backend:
 
@@ -64,6 +65,58 @@ Debes ajustar minimo:
 - `POST /webhook`
 - `GET /checkout/resultado`
 - `GET /health`
+- `GET /catalog/siigo`
+
+## Catalogo desde Siigo
+
+Endpoint:
+
+- `GET /catalog/siigo`
+
+Parametros opcionales:
+
+- `q`: texto para filtrar por nombre o SKU
+- `page`: pagina de resultados (default `1`)
+- `page_size`: cantidad por pagina (default `50`, max `200`)
+- `fetch_all`: cuando es `true`, recorre todas las paginas del inventario desde `page` (default segun `SIIGO_FETCH_ALL_DEFAULT`, recomendado `true`)
+- `max_pages`: limite de paginas a recorrer cuando `fetch_all=true` (default `SIIGO_MAX_PAGES`)
+- `hide_without_image`: cuando es `true`, excluye referencias sin imagen (usa `imagen` del payload y/o `frontend/scripts/siigo_imagenes.json`). Default segun `SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT`
+
+Variables de entorno relacionadas:
+
+- `SIIGO_API_BASE_URL` (default `https://api.siigo.com`)
+- `SIIGO_PRODUCTS_PATH` (default `/v1/products`)
+- `SIIGO_USERNAME`
+- `SIIGO_ACCESS_KEY`
+- `SIIGO_PARTNER_ID` (opcional)
+- `SIIGO_REQUEST_TIMEOUT_SECONDS`
+- `SIIGO_TOKEN_SAFETY_SECONDS`
+- `SIIGO_MAX_PAGES` (default `200`)
+- `SIIGO_FETCH_ALL_DEFAULT` (default `true`)
+- `SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT` (default `true`)
+- `SIIGO_IMAGE_MANIFEST_PATH` (default `../frontend/scripts/siigo_imagenes.json`)
+
+## Imagenes para catalogo Siigo (frontend)
+
+Para mostrar imagenes por producto del catalogo Siigo en `detalles.html`, usa el archivo:
+
+- `frontend/scripts/siigo_imagenes.json`
+- `frontend/scripts/siigo_descripciones.json`
+
+Formato esperado (clave por `SKU` o por `id` de Siigo):
+
+```json
+{
+	"C27580": "assets/images/siigo/C27580.webp",
+	"89cb488a-66b3-407f-a22e-d827616ad9cf": "assets/images/siigo/D13592.webp"
+}
+```
+
+Recomendacion:
+
+- Guarda los archivos en `frontend/assets/images/siigo/`
+- Usa rutas relativas desde `frontend/` como en el ejemplo
+- Mantén actualizado `siigo_descripciones.json` para mostrar la descripcion en el modal de detalle por SKU
 
 ## Base de Datos (PostgreSQL)
 
