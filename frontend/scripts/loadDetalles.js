@@ -41,6 +41,8 @@ const catalogoModalCantidad = document.getElementById("catalogo-modal-cantidad")
 const catalogoModalAgregar = document.getElementById("catalogo-modal-agregar");
 const catalogoModalComprar = document.getElementById("catalogo-modal-comprar");
 const CATALOGO_REAL_ITEMS_POR_PAGINA = 24;
+const CATALOGO_REAL_MAX_INTENTOS_CONSULTA = 3;
+const CATALOGO_REAL_RETRY_DELAY_MS = 900;
 const FILTROS_CATALOGO_SIIGO = [
   { id: "todos", label: "Todos", categoriasSiigo: [] },
   { id: "carnicos", label: "Carnicos", categoriasSiigo: ["fundas", "termoencogible"] },
@@ -172,6 +174,7 @@ const normalizarDescripcionSiigo = valor => {
     .replace(/\n[ \t]+/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
@@ -287,6 +290,9 @@ const formatearDescripcionModalHtml = descripcion => {
       return;
     }
 
+    if (parrafoActual.length) {
+      vaciarParrafo();
+    }
     parrafoActual.push(linea);
   });
 
@@ -1252,24 +1258,47 @@ async function consultarCatalogoRealSiigo(query) {
     params.set("q", q);
   }
 
-  const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
-    method: "GET",
-    headers: construirHeadersBackend()
-  });
+  const esEstadoReintentable = status => [408, 425, 429, 500, 502, 503, 504].includes(status);
+  const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let ultimoError = null;
 
-  const payloadText = await response.text();
-  let payload = {};
-  try {
-    payload = payloadText ? JSON.parse(payloadText) : {};
-  } catch {
-    payload = {};
+  for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
+    try {
+      const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
+        method: "GET",
+        headers: construirHeadersBackend()
+      });
+
+      const payloadText = await response.text();
+      let payload = {};
+      try {
+        payload = payloadText ? JSON.parse(payloadText) : {};
+      } catch {
+        payload = {};
+      }
+
+      if (!response.ok || !payload.ok) {
+        const error = new Error(payload.message || `Error HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+
+      return Array.isArray(payload.items) ? payload.items : [];
+    } catch (error) {
+      ultimoError = error;
+      const status = Number(error?.status || 0);
+      const reintentable = !status || esEstadoReintentable(status);
+      const ultimoIntento = intento >= CATALOGO_REAL_MAX_INTENTOS_CONSULTA;
+
+      if (!reintentable || ultimoIntento) {
+        break;
+      }
+
+      await esperar(CATALOGO_REAL_RETRY_DELAY_MS * intento);
+    }
   }
 
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.message || `Error HTTP ${response.status}`);
-  }
-
-  return Array.isArray(payload.items) ? payload.items : [];
+  throw ultimoError || new Error("No se pudo consultar el catalogo comercial.");
 }
 
 async function cargarCatalogoRealSiigo(productoBase) {
