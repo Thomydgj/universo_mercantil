@@ -1,0 +1,109 @@
+services:
+  - type: web
+    name: universo-mercantil-backend
+    env: python
+    plan: free
+    rootDir: backend
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+      # Base URLs
+      - key: BACKEND_BASE_URL
+        sync: false
+      - key: FRONTEND_BASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+      # Wompi
+      - key: WOMPI_PUBLIC_KEY
+        sync: false
+      - key: WOMPI_PRIVATE_KEY
+        sync: false
+      - key: WOMPI_INTEGRITY_SECRET
+        sync: false
+      - key: WOMPI_WEBHOOK_SECRET
+        sync: false
+      - key: WOMPI_URL
+        value: https://sandbox.wompi.co/v1
+
+      # Siigo
+      - key: SIIGO_API_BASE_URL
+        value: https://api.siigo.com
+      - key: SIIGO_PRODUCTS_PATH
+        value: /v1/products
+      - key: SIIGO_USERNAME
+        sync: false
+      - key: SIIGO_ACCESS_KEY
+        sync: false
+      - key: SIIGO_PARTNER_ID
+        sync: false
+      - key: SIIGO_REQUEST_TIMEOUT_SECONDS
+        value: "20"
+      - key: SIIGO_TOKEN_SAFETY_SECONDS
+        value: "60"
+      - key: SIIGO_CATALOG_CACHE_TTL_SECONDS
+        value: "300"
+      - key: SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT
+        value: "true"
+      - key: SIIGO_IMAGE_MANIFEST_PATH
+        value: ../frontend/scripts/siigo_imagenes.json
+      - key: SIIGO_SYNC_INVENTORY_ON_APPROVED
+        value: "true"
+      - key: SIIGO_INVENTORY_UPDATE_METHOD
+        value: PATCH
+      - key: SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE
+        value: /v1/products/{product_id}
+
+      # Storage
+      - key: DATABASE_URL
+        fromDatabase:
+          name: universo-mercantil-db
+          property: connectionString
+
+      # Email / billing notifications
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: COMPANY_NAME
+        value: Universo Mercantil
+      - key: EMAIL_LOGO_URL
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: FACTURACION_EMAIL_TO
+        sync: false
+      - key: FACTURACION_EMAIL_CC
+        sync: false
+
+      # Optional hardening / runtime knobs
+      - key: BACKEND_API_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MAX_REQUEST_BODY_BYTES
+        value: "262144"
+      - key: MIN_ORDER_AMOUNT_IN_CENTS
+        value: "50000"
+      - key: MAX_ORDER_AMOUNT_IN_CENTS
+        value: "10000000000"
+
+databases:
+  - name: universo-mercantil-db
+    plan: free
+    databaseName: universo_mercantil
+    user: universo_mercantil

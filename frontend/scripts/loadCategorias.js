@@ -15,8 +15,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   const descripcionTipos = {
-    flexibles: "Categorias para empaques flexibles de alta versatilidad, ideales para diferentes industrias y formatos.",
-    termoformados: "Categorias para empaques termoformados con excelente presentacion y proteccion para el producto."
+    flexibles: "Categorías para empaques flexibles de alta versatilidad, ideales para diferentes industrias y formatos.",
+    termoformados: "Categorías para empaques termoformados con excelente presentación y protección para el producto."
   };
 
   const tiposDisponibles = Object.keys(bannersPorTipo);
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (contadorCategoriasEl) {
-    contadorCategoriasEl.textContent = `${categoriasFiltradas.length} categoria${categoriasFiltradas.length === 1 ? "" : "s"}`;
+    contadorCategoriasEl.textContent = `${categoriasFiltradas.length} categoría${categoriasFiltradas.length === 1 ? "" : "s"}`;
   }
 
   if (categoriasDescripcionEl && tipoSeleccionado && descripcionTipos[tipoSeleccionado]) {
@@ -70,14 +70,14 @@ document.addEventListener("DOMContentLoaded", () => {
       banner.innerHTML = `
         <picture>
           <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_2_movil.webp">
-          <img src="assets/images/banners/escritorio/hero_2_pc.webp" alt="Categorias de empaque">
+          <img src="assets/images/banners/escritorio/hero_2_pc.webp" alt="Categorías de empaque">
         </picture>
       `;
     }
   }
 
   if (!categoriasFiltradas.length) {
-    container.innerHTML = `<p class="catalogo-empty">No encontramos categorias para este tipo de empaque. Intenta con otro filtro.</p>`;
+    container.innerHTML = `<p class="catalogo-empty">No encontramos categorías para este tipo de empaque. Intenta con otro filtro.</p>`;
     return;
   }
 

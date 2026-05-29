@@ -1,11 +1,11 @@
 # Universo Mercantil
 
-E-commerce estatico (HTML/CSS/JS) con backend Flask para links de pago Wompi, registro de pedidos y notificaciones.
+E-commerce estático (HTML/CSS/JS) con backend Flask para links de pago Wompi, registro de pedidos y notificaciones.
 
 ## Estructura del Proyecto
 
-- `frontend/`: sitio estatico completo (paginas, scripts, estilos, assets).
-- `backend/`: API Flask, persistencia y logica de pagos.
+- `frontend/`: sitio estático completo (páginas, scripts, estilos, assets).
+- `backend/`: API Flask, persistencia y lógica de pagos.
 - `backend/sql/`: esquema inicial de PostgreSQL.
 - `backend/requirements.txt`: dependencias Python para despliegue en Plesk.
 
@@ -14,9 +14,9 @@ E-commerce estatico (HTML/CSS/JS) con backend Flask para links de pago Wompi, re
 - Python 3.11+
 - Credenciales Wompi
 - Credenciales SMTP
-- PostgreSQL (opcional, recomendado para produccion)
+- PostgreSQL (opcional, recomendado para producción)
 
-## Configuracion Local
+## Configuración Local
 
 1. Crear entorno virtual e instalar dependencias:
 
@@ -31,7 +31,7 @@ pip install -r backend/requirements.txt
 - Copiar `backend/.env.example` como `backend/.env`
 - Completar valores reales de Wompi, SMTP y correos destino
 - Para activar base de datos, completar `DATABASE_URL`
-- Para catalogo en tiempo real desde Siigo, completar `SIIGO_USERNAME` y `SIIGO_ACCESS_KEY`
+- Para catálogo en tiempo real desde Siigo, completar `SIIGO_USERNAME` y `SIIGO_ACCESS_KEY`
 
 3. Ejecutar backend:
 
@@ -39,18 +39,18 @@ pip install -r backend/requirements.txt
 python backend/app.py
 ```
 
-4. Servir frontend estatico:
+4. Servir frontend estático:
 
 ```bash
 cd frontend
 python -m http.server 5500
 ```
 
-## Configuracion Runtime del Frontend
+## Configuración Runtime del Frontend
 
 El frontend usa `window.UNIVERSO_CONFIG` desde `frontend/scripts/runtime-config.js`.
 
-Debes ajustar minimo:
+Debes ajustar mínimo:
 
 - `backendBaseUrl`
 - `apiKey` (si usas `BACKEND_API_KEY`)
@@ -67,20 +67,20 @@ Debes ajustar minimo:
 - `GET /health`
 - `GET /catalog/siigo`
 
-## Catalogo desde Siigo
+## Catálogo desde Siigo
 
 Endpoint:
 
 - `GET /catalog/siigo`
 
-Parametros opcionales:
+Parámetros opcionales:
 
 - `q`: texto para filtrar por nombre o SKU
-- `page`: pagina de resultados (default `1`)
-- `page_size`: cantidad por pagina (default `50`, max `200`)
-- `fetch_all`: cuando es `true`, recorre todas las paginas del inventario desde `page` (default segun `SIIGO_FETCH_ALL_DEFAULT`, recomendado `true`)
-- `max_pages`: limite de paginas a recorrer cuando `fetch_all=true` (default `SIIGO_MAX_PAGES`)
-- `hide_without_image`: cuando es `true`, excluye referencias sin imagen (usa `imagen` del payload y/o `frontend/scripts/siigo_imagenes.json`). Default segun `SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT`
+- `page`: página de resultados (default `1`)
+- `page_size`: cantidad por página (default `50`, max `200`)
+- `fetch_all`: cuando es `true`, recorre todas las páginas del inventario desde `page` (default según `SIIGO_FETCH_ALL_DEFAULT`, recomendado `true`)
+- `max_pages`: límite de páginas a recorrer cuando `fetch_all=true` (default `SIIGO_MAX_PAGES`)
+- `hide_without_image`: cuando es `true`, excluye referencias sin imagen (usa `imagen` del payload y/o `frontend/scripts/siigo_imagenes.json`). Default según `SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT`
 
 Variables de entorno relacionadas:
 
@@ -96,9 +96,21 @@ Variables de entorno relacionadas:
 - `SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT` (default `true`)
 - `SIIGO_IMAGE_MANIFEST_PATH` (default `../frontend/scripts/siigo_imagenes.json`)
 
-## Imagenes para catalogo Siigo (frontend)
+Sincronización de inventario al confirmar pago (`APPROVED`):
 
-Para mostrar imagenes por producto del catalogo Siigo en `detalles.html`, usa el archivo:
+- Cuando Wompi confirma una transacción aprobada, el backend intenta descontar cantidades en Siigo por cada item del pedido.
+- El proceso es idempotente por pedido: una vez marcado como sincronizado, no vuelve a descontar aunque lleguen webhook y redirect.
+- Al actualizar inventario, se invalida la caché de catálogo para reflejar cambios en la siguiente consulta.
+
+Variables adicionales:
+
+- `SIIGO_SYNC_INVENTORY_ON_APPROVED` (default `true`)
+- `SIIGO_INVENTORY_UPDATE_METHOD` (default `PATCH`, soporta `PATCH` o `PUT`)
+- `SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE` (default `/v1/products/{product_id}`)
+
+## Imágenes para catálogo Siigo (frontend)
+
+Para mostrar imágenes por producto del catálogo Siigo en `detalles.html`, usa el archivo:
 
 - `frontend/scripts/siigo_imagenes.json`
 - `frontend/scripts/siigo_descripciones.json`
@@ -112,11 +124,11 @@ Formato esperado (clave por `SKU` o por `id` de Siigo):
 }
 ```
 
-Recomendacion:
+Recomendación:
 
 - Guarda los archivos en `frontend/assets/images/siigo/`
 - Usa rutas relativas desde `frontend/` como en el ejemplo
-- Mantén actualizado `siigo_descripciones.json` para mostrar la descripcion en el modal de detalle por SKU
+- Mantén actualizado `siigo_descripciones.json` para mostrar la descripción en el modal de detalle por SKU
 
 ## Base de Datos (PostgreSQL)
 
@@ -128,13 +140,13 @@ Cuando `DATABASE_URL` esta configurado, el backend usa:
 
 SQL inicial: `backend/sql/001_init_postgres.sql`.
 
-Migracion desde JSON:
+Migración desde JSON:
 
 ```bash
 python backend/migrate_json_to_db.py
 ```
 
-## Optimizacion de Imagenes
+## Optimización de Imágenes
 
 Dry run:
 
@@ -151,3 +163,22 @@ python frontend/scripts/optimize_images.py --root frontend/assets/images --verbo
 ## Despliegue en Plesk
 
 Revisa `despliegue.md` para el paso a paso completo.
+
+## Despliegue rápido en Render (Blueprint)
+
+Este repositorio ya incluye `render.yaml` en la raiz.
+
+1. Sube cambios a tu repo remoto (GitHub/GitLab).
+2. En Render: `New +` -> `Blueprint`.
+3. Selecciona el repositorio y rama.
+4. Render creara:
+- Web Service `universo-mercantil-backend`
+- PostgreSQL `universo-mercantil-db`
+5. Completa las variables marcadas como `sync: false` (Wompi, Siigo, SMTP, CORS, URLs).
+
+Verificaciones despues del deploy:
+
+1. `GET /health` responde `ok: true`.
+2. `BACKEND_BASE_URL` coincide con la URL publica del servicio Render.
+3. `ALLOWED_ORIGINS` incluye los dominios reales del frontend con esquema (`https://...`).
+4. En Wompi, la URL de eventos apunta a `https://TU-BACKEND-RENDER/webhook`.

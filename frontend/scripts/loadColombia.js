@@ -15,14 +15,9 @@ if (departamentoSelect && ciudadSelect) {
     });
   }
 
-  Promise.all([
-    fetch("./scripts/colombia.json", { cache: "no-store" }).then(res => res.json()),
-    fetch("./scripts/shipping-zones.json", { cache: "no-store" }).then(res => res.json())
-  ])
-    .then(([departamentosData, zones]) => {
-      if (window.checkoutShipping) {
-        window.checkoutShipping.setZones(zones);
-      }
+  fetch("./scripts/colombia.json", { cache: "no-store" })
+    .then(res => res.json())
+    .then(departamentosData => {
 
       const placeholderDep = document.createElement("option");
       placeholderDep.value = "";
@@ -57,7 +52,7 @@ if (departamentoSelect && ciudadSelect) {
 
       window.getShippingZoneForDepartment = departamento => {
         if (!window.checkoutShipping) {
-          return { id: "zona-default", nombre: "Zona Nacional", precio: 20000 };
+          return { id: "zona-convenir", nombre: "Envío a convenir con el cliente", precio: 0 };
         }
         return window.checkoutShipping.getZoneForDepartment(departamento);
       };
@@ -69,10 +64,11 @@ if (departamentoSelect && ciudadSelect) {
       };
     })
     .catch(err => {
-      console.error("Error cargando datos de departamentos/envios:", err);
+      console.error("Error cargando datos de departamentos:", err);
       if (window.checkoutState) {
         window.checkoutState.shippingCost = 0;
-        window.checkoutState.shippingZone = "No disponible";
+        window.checkoutState.shippingZone = "Envío a convenir con el cliente";
+        window.checkoutState.shippingMessage = "Nos contactaremos contigo para convenir el envío según tus necesidades específicas.";
       }
       document.dispatchEvent(new CustomEvent("shipping:updated", { detail: window.checkoutState || {} }));
     });

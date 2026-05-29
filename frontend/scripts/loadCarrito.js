@@ -16,8 +16,16 @@ document.addEventListener("DOMContentLoaded", () => {
     return Number(obtenerEstadoCheckout().shippingCost || 0);
   }
 
+  function obtenerTextoEnvio() {
+    const state = obtenerEstadoCheckout();
+    if ((state.deliveryType || "shipping") === "pickup") {
+      return "Sin costo";
+    }
+    return "No incluido en este pago";
+  }
+
   function obtenerZonaEnvio() {
-    return obtenerEstadoCheckout().shippingZone || "Zona nacional";
+    return obtenerEstadoCheckout().shippingZone || "Envío a convenir con el cliente";
   }
 
   function renderCarrito() {
@@ -88,8 +96,8 @@ document.addEventListener("DOMContentLoaded", () => {
       totalDiv.classList.add("precio-pedido");
       totalDiv.innerHTML = `
         <p class="total-line">Subtotal: <strong class="subtotal-pedido">$${calcularSubtotal().toLocaleString("es-CO")}</strong></p>
-        <p class="total-line">Envio: <strong class="envio-pedido">$${obtenerCostoEnvio().toLocaleString("es-CO")}</strong></p>
-        <p class="total-zone">Zona: <span class="zona-pedido">${obtenerZonaEnvio()}</span></p>
+        <p class="total-line">Envío: <strong class="envio-pedido">${obtenerTextoEnvio()}</strong></p>
+        <p class="total-zone">Modalidad de envío: <span class="zona-pedido">${obtenerZonaEnvio()}</span></p>
         <h3 class="total-pedido">Total del pedido: <span class="total-pedido-valor">$${calcularTotal().toLocaleString("es-CO")}</span></h3>
         <button type="button" class="btn-pagar">COMPRAR</button>
       `;
@@ -117,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalNodo = contenedor.querySelector(".total-pedido-valor");
 
     if (subtotalNodo) subtotalNodo.textContent = `$${calcularSubtotal().toLocaleString("es-CO")}`;
-    if (envioNodo) envioNodo.textContent = `$${obtenerCostoEnvio().toLocaleString("es-CO")}`;
+    if (envioNodo) envioNodo.textContent = obtenerTextoEnvio();
     if (zonaNodo) zonaNodo.textContent = obtenerZonaEnvio();
     if (totalNodo) totalNodo.textContent = `$${calcularTotal().toLocaleString("es-CO")}`;
   }

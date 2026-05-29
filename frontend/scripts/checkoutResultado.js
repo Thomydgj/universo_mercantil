@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!whatsappEl || !SALES_WHATSAPP_NUMBER) {
       return;
     }
-    const referenceText = txId ? ` Transaccion: ${txId}.` : "";
+    const referenceText = txId ? ` Transacción: ${txId}.` : "";
     const message = encodeURIComponent(`Hola, acabo de finalizar el proceso de pago.${referenceText} Quiero confirmar mi pedido.`);
     whatsappEl.href = `https://wa.me/${SALES_WHATSAPP_NUMBER}?text=${message}`;
     whatsappEl.hidden = false;
@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const detail = ui.detail || payload?.sync?.message || payload?.sync?.reason || "Sin detalle adicional";
 
     setTone(tone);
-    syncEl.textContent = `Estado de sincronizacion: ${syncStatus}`;
+    syncEl.textContent = `Estado de sincronización: ${syncStatus}`;
     titleEl.textContent = ui.title || "Estamos procesando tu pago";
     subtitleEl.textContent = ui.subtitle || "Tu proceso de checkout fue recibido. Te sugerimos verificar el estado de tu pedido en unos segundos.";
     txEl.textContent = txId;
@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const setErrorState = message => {
     setTone("error");
-    syncEl.textContent = "Estado de sincronizacion: error";
+    syncEl.textContent = "Estado de sincronización: error";
     titleEl.textContent = "No se pudo validar el pago";
     subtitleEl.textContent = "No logramos consultar el estado del checkout en este momento.";
     txEl.textContent = txFromQuery || "N/A";
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         payload = raw ? JSON.parse(raw) : {};
       } catch {
-        throw new Error(`Respuesta invalida del servidor (${response.status})`);
+        throw new Error(`Respuesta inválida del servidor (${response.status})`);
       }
 
       if (!response.ok) {
@@ -95,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       setErrorState(error.message || "Error desconocido");
       if (typeof window.showToast === "function") {
-        window.showToast("No se pudo consultar el estado de la transaccion.", "error");
+        window.showToast("No se pudo consultar el estado de la transacción.", "error");
       }
     }
   };

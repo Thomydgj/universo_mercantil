@@ -1,5 +1,5 @@
-// Configuracion runtime para produccion.
-// Ajusta estos valores segun el entorno en Plesk.
+// Configuración runtime para producción.
+// Ajusta estos valores según el entorno en Plesk.
 const hostname = window.location.hostname;
 const isLocalPreview = hostname === "localhost" || hostname === "127.0.0.1";
 

@@ -43,9 +43,11 @@ const catalogoModalComprar = document.getElementById("catalogo-modal-comprar");
 const CATALOGO_REAL_ITEMS_POR_PAGINA = 24;
 const CATALOGO_REAL_MAX_INTENTOS_CONSULTA = 3;
 const CATALOGO_REAL_RETRY_DELAY_MS = 900;
+const CATALOGO_REAL_CACHE_TTL_MS = Math.max(0, Number(runtimeConfig.siigoCatalogCacheTtlMs || 300000));
+const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:${backendBaseUrl || "default"}`;
 const FILTROS_CATALOGO_SIIGO = [
   { id: "todos", label: "Todos", categoriasSiigo: [] },
-  { id: "carnicos", label: "Carnicos", categoriasSiigo: ["fundas", "termoencogible"] },
+  { id: "carnicos", label: "Cárnicos", categoriasSiigo: ["fundas", "termoencogible"] },
   { id: "termoformados", label: "Termoformados", categoriasSiigo: ["termoformado"] },
   { id: "flexibles", label: "Bolsas flexibles", categoriasSiigo: ["bolsas", "bolsas de cafe"] }
 ];
@@ -89,10 +91,10 @@ const categoriaContexto = params.get("categoria");
 const producto = productos.find(p => p.id === idSeleccionado);
 
 const nombresCategorias = {
-  "carnicos": "Carnicos",
-  "cafe-chocolate": "Cafe y Chocolate",
+  "carnicos": "Cárnicos",
+  "cafe-chocolate": "Café y Chocolate",
   "alimentos-preparados": "Alimentos Preparados",
-  "panaderia": "Panaderia",
+  "panaderia": "Panadería",
   "snacks": "Snacks",
   "mascotas": "Mascotas"
 };
@@ -104,55 +106,55 @@ const categoriasCatalogo = typeof categorias !== "undefined" && Array.isArray(ca
 const ventajasPorCategoria = {
   "carnicos": [
     "Alta barrera para conservar frescura y reducir merma.",
-    "Materiales resistentes para cadena de frio y transporte.",
-    "Presentacion limpia para exhibicion en vitrina y retail.",
+    "Materiales resistentes para cadena de frío y transporte.",
+    "Presentación limpia para exhibición en vitrina y retail.",
     "Opciones para diferentes calibres y porciones."
   ],
   "cafe-chocolate": [
-    "Proteccion de aroma para conservar perfil sensorial.",
-    "Excelente barrera a humedad y oxigeno.",
-    "Formatos compatibles con valvula y cierre practico.",
+    "Protección de aroma para conservar perfil sensorial.",
+    "Excelente barrera a humedad y oxígeno.",
+    "Formatos compatibles con válvula y cierre práctico.",
     "Acabados premium para posicionamiento de marca."
   ],
   "alimentos-preparados": [
     "Empaques funcionales para porciones listas para venta.",
-    "Buena resistencia mecanica para operacion diaria.",
+    "Buena resistencia mecánica para operación diaria.",
     "Compatibles con procesos de alistamiento y despacho.",
     "Mejor experiencia de consumo y manipulación."
   ],
   "panaderia": [
     "Mayor visibilidad de producto en punto de venta.",
-    "Presentaciones ligeras y faciles de almacenar.",
-    "Cierre practico para mantener textura y frescura.",
-    "Opciones versatiles para diferentes tamaños."
+    "Presentaciones ligeras y fáciles de almacenar.",
+    "Cierre práctico para mantener textura y frescura.",
+    "Opciones versátiles para diferentes tamaños."
   ],
   "snacks": [
-    "Formatos dinamicos para alta rotacion comercial.",
-    "Proteccion del producto durante exhibicion y transporte.",
+    "Formatos dinámicos para alta rotación comercial.",
+    "Protección del producto durante exhibición y transporte.",
     "Soporte para branding con acabados atractivos.",
     "Facilidad de uso para consumo en movimiento."
   ],
   "mascotas": [
     "Estructuras robustas para alimentos de mayor peso.",
-    "Mayor seguridad en almacenamiento y manipulacion.",
+    "Mayor seguridad en almacenamiento y manipulación.",
     "Formatos funcionales para hogar y retail especializado.",
-    "Buena presencia visual para categorias premium."
+    "Buena presencia visual para categorías premium."
   ]
 };
 
 const usosPorCategoria = {
-  "carnicos": ["Embutidos", "Proteina fresca", "Porcionados", "Canal HORECA", "Retail refrigerado", "Exportacion"],
-  "cafe-chocolate": ["Cafe molido", "Cafe en grano", "Cacao", "Chocolateria", "Ediciones premium", "Canal gourmet"],
+  "carnicos": ["Embutidos", "Proteína fresca", "Porcionados", "Canal HORECA", "Retail refrigerado", "Exportación"],
+  "cafe-chocolate": ["Café molido", "Café en grano", "Cacao", "Chocolatería", "Ediciones premium", "Canal gourmet"],
   "alimentos-preparados": ["Ready to eat", "Meal prep", "Despachos", "Take away", "Canal institucional", "Dark kitchen"],
-  "panaderia": ["Pan tajado", "Reposteria", "Galletas", "Linea artesanal", "Canal tradicional", "Retail moderno"],
-  "snacks": ["Frutos secos", "Mix crocantes", "Granolas", "Confiteria", "Canal impulso", "E-commerce"],
-  "mascotas": ["Concentrado", "Snacks pets", "Presentaciones familiares", "Linea veterinaria", "Canal especializado", "Suscripciones"]
+  "panaderia": ["Pan tajado", "Repostería", "Galletas", "Línea artesanal", "Canal tradicional", "Retail moderno"],
+  "snacks": ["Frutos secos", "Mix crocantes", "Granolas", "Confitería", "Canal impulso", "E-commerce"],
+  "mascotas": ["Concentrado", "Snacks pets", "Presentaciones familiares", "Línea veterinaria", "Canal especializado", "Suscripciones"]
 };
 
 const ventajasGenerales = [
-  "Soluciones versatiles para distintos modelos de negocio.",
-  "Acompanamiento tecnico para escoger el empaque adecuado.",
-  "Enfoque en proteccion, presentacion y eficiencia operativa.",
+  "Soluciones versátiles para distintos modelos de negocio.",
+  "Acompañamiento técnico para escoger el empaque adecuado.",
+  "Enfoque en protección, presentación y eficiencia operativa.",
   "Opciones escalables para crecimiento de portafolio."
 ];
 
@@ -164,6 +166,53 @@ const construirHeadersBackend = () => {
     headers["X-Api-Key"] = backendApiKey;
   }
   return headers;
+};
+
+const leerCacheCatalogoReal = query => {
+  if (normalizarTexto(query) || CATALOGO_REAL_CACHE_TTL_MS <= 0) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CATALOGO_REAL_CACHE_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    const syncedAt = Number(parsed?.syncedAt || 0);
+    const items = parsed?.items;
+    if (!Number.isFinite(syncedAt) || !Array.isArray(items)) {
+      window.localStorage.removeItem(CATALOGO_REAL_CACHE_STORAGE_KEY);
+      return null;
+    }
+
+    const vigente = (Date.now() - syncedAt) <= CATALOGO_REAL_CACHE_TTL_MS;
+    if (!vigente) {
+      window.localStorage.removeItem(CATALOGO_REAL_CACHE_STORAGE_KEY);
+      return null;
+    }
+
+    return items;
+  } catch {
+    return null;
+  }
+};
+
+const guardarCacheCatalogoReal = (query, items) => {
+  if (normalizarTexto(query) || CATALOGO_REAL_CACHE_TTL_MS <= 0 || !Array.isArray(items)) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      CATALOGO_REAL_CACHE_STORAGE_KEY,
+      JSON.stringify({
+        syncedAt: Date.now(),
+        items
+      })
+    );
+  } catch {
+    // No-op: localStorage quota or disabled storage should not break catalog rendering.
+  }
 };
 
 const normalizarTexto = valor => String(valor || "").trim();
@@ -472,6 +521,105 @@ const filtrarItemsCatalogoPorFiltro = (itemsSiigo, filtroId) => {
   return (Array.isArray(itemsSiigo) ? itemsSiigo : []).filter(item => itemPerteneceFiltroSiigo(item, filtro));
 };
 
+const detectarTipoTermoformado = itemSiigo => {
+  const nombre = normalizarTextoComparacion(itemSiigo?.nombre);
+  if (!nombre) return "otro";
+  if (/\btapa\b/.test(nombre)) return "tapa";
+  if (/\bbase\b/.test(nombre)) return "base";
+  return "otro";
+};
+
+const extraerCodigoTermoformado = itemSiigo => {
+  const candidatos = [
+    String(itemSiigo?.nombre || ""),
+    String(itemSiigo?.sku || ""),
+    String(itemSiigo?.id || "")
+  ];
+
+  for (const candidato of candidatos) {
+    const texto = candidato.toUpperCase();
+    if (!texto) continue;
+
+    const conGuion = texto.match(/\b([A-Z]{1,6})\s*-\s*(\d{1,4}[A-Z]?)\b/);
+    if (conGuion) {
+      return `${conGuion[1]}-${conGuion[2]}`;
+    }
+
+    const conEspacio = texto.match(/\b([A-Z]{1,6})\s+(\d{1,4}[A-Z]?)\b/);
+    if (conEspacio) {
+      return `${conEspacio[1]}-${conEspacio[2]}`;
+    }
+
+    const compacto = texto.match(/\b([A-Z]{2,6})(\d{1,4}[A-Z]?)\b/);
+    if (compacto) {
+      return `${compacto[1]}-${compacto[2]}`;
+    }
+  }
+
+  return "";
+};
+
+const ordenarItemsTermoformados = itemsSiigo => {
+  const items = Array.isArray(itemsSiigo) ? itemsSiigo : [];
+  const grupos = new Map();
+  const sueltos = [];
+
+  items.forEach((item, index) => {
+    const codigo = extraerCodigoTermoformado(item);
+    if (!codigo) {
+      sueltos.push({ item, index });
+      return;
+    }
+
+    if (!grupos.has(codigo)) {
+      grupos.set(codigo, {
+        firstIndex: index,
+        bases: [],
+        tapas: [],
+        otros: []
+      });
+    }
+
+    const grupo = grupos.get(codigo);
+    grupo.firstIndex = Math.min(grupo.firstIndex, index);
+
+    const tipo = detectarTipoTermoformado(item);
+    if (tipo === "base") {
+      grupo.bases.push({ item, index });
+      return;
+    }
+
+    if (tipo === "tapa") {
+      grupo.tapas.push({ item, index });
+      return;
+    }
+
+    grupo.otros.push({ item, index });
+  });
+
+  const ordenados = [];
+  const gruposOrdenados = Array.from(grupos.values()).sort((a, b) => a.firstIndex - b.firstIndex);
+
+  gruposOrdenados.forEach(grupo => {
+    grupo.bases.sort((a, b) => a.index - b.index).forEach(entry => ordenados.push(entry.item));
+    grupo.tapas.sort((a, b) => a.index - b.index).forEach(entry => ordenados.push(entry.item));
+    grupo.otros.sort((a, b) => a.index - b.index).forEach(entry => ordenados.push(entry.item));
+  });
+
+  sueltos.sort((a, b) => a.index - b.index).forEach(entry => ordenados.push(entry.item));
+  return ordenados;
+};
+
+const ordenarItemsCatalogoPorFiltro = (itemsSiigo, filtroId) => {
+  const items = Array.isArray(itemsSiigo) ? [...itemsSiigo] : [];
+  const filtro = obtenerFiltroCatalogoPorId(filtroId);
+  if (filtro.id !== "termoformados") {
+    return items;
+  }
+
+  return ordenarItemsTermoformados(items);
+};
+
 const limpiarFiltrosCatalogoReal = () => {
   if (!catalogoRealFiltros) return;
   catalogoRealFiltros.hidden = true;
@@ -764,7 +912,7 @@ function construirCartKeySiigo(sku, fallbackId) {
 
 function agregarItemSiigoAlCarrito(productoBase, itemSiigo, cantidadSolicitada) {
   if (!Number.isInteger(cantidadSolicitada) || cantidadSolicitada < 1) {
-    notify("Ingresa una cantidad valida.", "warning");
+    notify("Ingresa una cantidad válida.", "warning");
     return false;
   }
 
@@ -776,7 +924,7 @@ function agregarItemSiigoAlCarrito(productoBase, itemSiigo, cantidadSolicitada) 
 
   const precio = Number(itemSiigo.precio);
   if (!Number.isFinite(precio) || precio < 0) {
-    notify("Esta referencia aun no tiene precio definido.", "warning");
+    notify("Esta referencia aún no tiene precio definido.", "warning");
     return false;
   }
 
@@ -1248,6 +1396,11 @@ function renderizarCatalogoRealPaginado(productoBase, itemsSiigo, opciones = {})
 }
 
 async function consultarCatalogoRealSiigo(query) {
+  const cache = leerCacheCatalogoReal(query);
+  if (Array.isArray(cache)) {
+    return cache;
+  }
+
   const params = new URLSearchParams({
     page: "1",
     page_size: "80",
@@ -1283,7 +1436,9 @@ async function consultarCatalogoRealSiigo(query) {
         throw error;
       }
 
-      return Array.isArray(payload.items) ? payload.items : [];
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      guardarCacheCatalogoReal(query, items);
+      return items;
     } catch (error) {
       ultimoError = error;
       const status = Number(error?.status || 0);
@@ -1298,7 +1453,7 @@ async function consultarCatalogoRealSiigo(query) {
     }
   }
 
-  throw ultimoError || new Error("No se pudo consultar el catalogo comercial.");
+  throw ultimoError || new Error("No se pudo consultar el catálogo comercial.");
 }
 
 async function cargarCatalogoRealSiigo(productoBase) {
@@ -1307,13 +1462,13 @@ async function cargarCatalogoRealSiigo(productoBase) {
   }
 
   if (!backendBaseUrl) {
-    actualizarEstadoCatalogoReal("No se encontro configuracion de backend para consultar el catalogo.", "warning");
+    actualizarEstadoCatalogoReal("No se encontró configuración de backend para consultar el catálogo.", "warning");
     limpiarPaginacionCatalogoReal();
     limpiarFiltrosCatalogoReal();
     return;
   }
 
-  actualizarEstadoCatalogoReal("Consultando catalogo comercial...", "loading");
+  actualizarEstadoCatalogoReal("Consultando catálogo comercial...", "loading");
   catalogoRealContainer.innerHTML = "";
   limpiarPaginacionCatalogoReal();
   limpiarFiltrosCatalogoReal();
@@ -1327,7 +1482,7 @@ async function cargarCatalogoRealSiigo(productoBase) {
 
     if (!itemsSiigo.length) {
       actualizarEstadoCatalogoReal("No encontramos referencias en este momento.", "warning");
-      catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Aun no hay referencias disponibles. Cuando exista inventario activo aparecera aqui con SKU, precio y cantidad.</p>";
+      catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Aún no hay referencias disponibles. Cuando exista inventario activo aparecerá aquí con SKU, precio y cantidad.</p>";
       limpiarPaginacionCatalogoReal();
       limpiarFiltrosCatalogoReal();
       return;
@@ -1340,8 +1495,9 @@ async function cargarCatalogoRealSiigo(productoBase) {
 
       const filtroActual = obtenerFiltroCatalogoPorId(filtroActivo);
       const itemsFiltrados = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
+      const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroActivo);
 
-      if (!itemsFiltrados.length) {
+      if (!itemsOrdenados.length) {
         const mensajeVacio = filtroActual.id === "todos"
           ? "No encontramos referencias en este momento."
           : `No encontramos referencias para ${filtroActual.label.toLowerCase()} en este momento.`;
@@ -1352,21 +1508,21 @@ async function cargarCatalogoRealSiigo(productoBase) {
         return;
       }
 
-      const total = itemsFiltrados.length;
+      const total = itemsOrdenados.length;
       const plural = total === 1 ? "" : "s";
       const mensaje = filtroActual.id === "todos"
         ? `${total} referencia${plural} disponible${plural}.`
         : `${total} referencia${plural} en ${filtroActual.label}.`;
 
       actualizarEstadoCatalogoReal(mensaje, "success");
-      renderizarCatalogoRealPaginado(productoBase, itemsFiltrados, { limpiarEstado: false });
+      renderizarCatalogoRealPaginado(productoBase, itemsOrdenados, { limpiarEstado: false });
     };
 
     aplicarFiltro(filtroActivo);
   } catch (error) {
-    console.error("Error cargando catalogo comercial:", error);
-    actualizarEstadoCatalogoReal("No se pudo cargar el catalogo comercial en este momento.", "error");
-    catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Ocurrio un problema consultando el catalogo. Verifica credenciales, permisos y conectividad del backend.</p>";
+    console.error("Error cargando catálogo comercial:", error);
+    actualizarEstadoCatalogoReal("No se pudo cargar el catálogo comercial en este momento.", "error");
+    catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Ocurrió un problema consultando el catálogo. Verifica credenciales, permisos y conectividad del backend.</p>";
     limpiarPaginacionCatalogoReal();
     limpiarFiltrosCatalogoReal();
   }
@@ -1385,7 +1541,7 @@ if (producto) {
 
   const categoriaNombre = categoriaDefinida?.nombre || (categoriaPrincipal
     ? (nombresCategorias[categoriaPrincipal] || categoriaPrincipal)
-    : "Linea general");
+    : "Línea general");
 
   const tiposCategoria = Array.isArray(categoriaDefinida?.tipo)
     ? categoriaDefinida.tipo
@@ -1409,12 +1565,12 @@ if (producto) {
   }
 
   if (descripcionNodo) {
-    const descripcionBase = normalizarTexto(producto.descripcionLarga) || `Solucion de empaque para ${producto.nombre}.`;
-    descripcionNodo.textContent = `${descripcionBase} Esta seccion te sirve como introduccion a la linea; la compra se realiza en el catalogo comercial inferior.`;
+    const descripcionBase = normalizarTexto(producto.descripcionLarga) || `Solución de empaque para ${producto.nombre}.`;
+    descripcionNodo.textContent = descripcionBase;
   }
 
   if (btnWhatsappAsesoria) {
-    const mensajeAsesoria = `Hola, quiero asesoria para ${producto.nombre}.`;
+    const mensajeAsesoria = `Hola, quiero asesoría para ${producto.nombre}.`;
     const whatsappHref = construirLinkWhatsappAsesoria(mensajeAsesoria);
 
     if (whatsappHref) {
@@ -1429,7 +1585,7 @@ if (producto) {
   }
 
   if (lineaNodo) {
-    lineaNodo.textContent = `Linea: ${categoriaNombre}`;
+    lineaNodo.textContent = `Línea: ${categoriaNombre}`;
   }
 
   if (detalleTitulo) {
@@ -1574,7 +1730,7 @@ if (producto) {
     detalleTitulo.textContent = "Producto no disponible";
   }
   if (detalleSubtitulo) {
-    detalleSubtitulo.textContent = "No encontramos el producto solicitado. Explora otras opciones del catalogo.";
+    detalleSubtitulo.textContent = "No encontramos el producto solicitado. Explora otras opciones del catálogo.";
   }
 }
 });

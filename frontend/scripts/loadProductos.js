@@ -14,20 +14,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   const categoriaSeleccionada = params.get("categoria");
 
   const nombresCategorias = {
-    "carnicos": "Carnicos",
-    "cafe-chocolate": "Cafe y Chocolate",
+    "carnicos": "Cárnicos",
+    "cafe-chocolate": "Café y Chocolate",
     "alimentos-preparados": "Alimentos Preparados",
-    "panaderia": "Panaderia",
+    "panaderia": "Panadería",
     "snacks": "Snacks",
     "mascotas": "Mascotas"
   };
 
   const descripcionesCategorias = {
-    "carnicos": "Empaques y fundas especializadas para productos carnicos con altos estandares de proteccion.",
+    "carnicos": "Empaques y fundas especializadas para productos cárnicos con altos estándares de protección.",
     "cafe-chocolate": "Soluciones con excelente barrera para conservar aroma, textura y frescura.",
-    "alimentos-preparados": "Empaques funcionales para productos listos para consumo y cadenas de distribucion.",
-    "panaderia": "Presentaciones atractivas y practicas para panaderia, reposteria y consumo diario.",
-    "snacks": "Formatos flexibles para snacks con enfoque en conservacion y visibilidad en punto de venta.",
+    "alimentos-preparados": "Empaques funcionales para productos listos para consumo y cadenas de distribución.",
+    "panaderia": "Presentaciones atractivas y prácticas para panadería, repostería y consumo diario.",
+    "snacks": "Formatos flexibles para snacks con enfoque en conservación y visibilidad en punto de venta.",
     "mascotas": "Empaques resistentes y funcionales para alimentos y productos del sector mascotas."
   };
 
@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ? productos.filter(p => p.categorias.includes(categoriaSeleccionada))
     : productos;
 
-  // Construye chips de categorias
+  // Construye chips de categorías
   if (filtroCategoriasEl) {
     const chips = [
       `<a href="productos.html" class="chip-categoria ${categoriaSeleccionada ? "" : "activa"}">Todas</a>`
@@ -52,11 +52,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     filtroCategoriasEl.innerHTML = chips.join("");
   }
 
-  // Actualiza informacion de contexto
+  // Actualiza información de contexto
   if (categoriaActualEl) {
     categoriaActualEl.textContent = categoriaSeleccionada
-      ? `Categoria: ${nombresCategorias[categoriaSeleccionada] || categoriaSeleccionada}`
-      : "Todas las categorias";
+      ? `Categoría: ${nombresCategorias[categoriaSeleccionada] || categoriaSeleccionada}`
+      : "Todas las categorías";
   }
 
   if (contadorProductosEl) {
@@ -84,14 +84,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       banner.innerHTML = `
         <picture>
           <source media="(max-width: 768px)" srcset="assets/images/banners/movil/hero_2_movil.webp">
-          <img src="assets/images/banners/escritorio/hero_2_pc.webp" alt="Catalogo de productos">
+          <img src="assets/images/banners/escritorio/hero_2_pc.webp" alt="Catálogo de productos">
         </picture>
       `;
     }
   }
 
   if (!productosFiltrados.length) {
-    container.innerHTML = `<p class="catalogo-empty">No encontramos productos para esta categoria. Prueba con otra categoria o revisa el catalogo completo.</p>`;
+    container.innerHTML = `<p class="catalogo-empty">No encontramos productos para esta categoría. Prueba con otra categoría o revisa el catálogo completo.</p>`;
     return;
   }
 

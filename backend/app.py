@@ -12,11 +12,75 @@ import uuid
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
+from urllib.parse import quote, urlparse
 
 import requests
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
+
+
+def _env_int(name: str, default: int, minimum: int = 1) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        return default
+
+    return parsed if parsed >= minimum else default
+
+
+def _split_csv(raw_value: str | None) -> list[str]:
+    return [entry.strip() for entry in str(raw_value or "").split(",") if entry.strip()]
+
+
+def _normalize_origin(value: str) -> str:
+    raw = str(value or "").strip().rstrip("/")
+    if not raw:
+        return ""
+
+    parse_target = raw if "://" in raw else f"https://{raw}"
+    parsed = urlparse(parse_target)
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        return ""
+
+    scheme = (parsed.scheme or "https").strip().lower()
+    if scheme not in {"http", "https"}:
+        return ""
+
+    port = parsed.port
+    if port and not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)):
+        return f"{scheme}://{host}:{port}"
+
+    return f"{scheme}://{host}"
+
+
+def _expand_allowed_origins(raw_value: str) -> list[str]:
+    normalized: list[str] = []
+    for entry in _split_csv(raw_value):
+        if "://" in entry:
+            candidate = _normalize_origin(entry)
+            if candidate:
+                normalized.append(candidate)
+            continue
+
+        host = entry.strip().strip("/")
+        if not host:
+            continue
+        normalized.extend(filter(None, [_normalize_origin(f"https://{host}"), _normalize_origin(f"http://{host}")]))
+
+    seen: set[str] = set()
+    unique = []
+    for origin in normalized:
+        if origin in seen:
+            continue
+        seen.add(origin)
+        unique.append(origin)
+    return unique
 
 BACKEND_DIR = Path(__file__).resolve().parent
 ENV_PATH = BACKEND_DIR / ".env"
@@ -57,17 +121,15 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # Variables de entorno
-ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000"
-    ).split(",")
-    if origin.strip()
-]
+ALLOWED_ORIGINS = _expand_allowed_origins(
+    os.getenv("ALLOWED_ORIGINS", "http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000")
+)
+
+MAX_REQUEST_BODY_BYTES = _env_int("MAX_REQUEST_BODY_BYTES", 262144, 1024)
 
 # Configuración de CORS restringida por entorno
 CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
+app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
 
 WOMPI_PUBLIC_KEY = os.getenv("WOMPI_PUBLIC_KEY")
 WOMPI_PRIVATE_KEY = os.getenv("WOMPI_PRIVATE_KEY")
@@ -78,10 +140,34 @@ BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http
 FRONTEND_BASE_URL = (os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500").rstrip("/")
 SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "").strip()
+BACKEND_API_KEYS = [
+    key
+    for key in dict.fromkeys(_split_csv(os.getenv("BACKEND_API_KEYS")) + ([BACKEND_API_KEY] if BACKEND_API_KEY else []))
+    if key
+]
 MIN_ORDER_AMOUNT_IN_CENTS = int(os.getenv("MIN_ORDER_AMOUNT_IN_CENTS", "50000"))
 MAX_ORDER_AMOUNT_IN_CENTS = int(os.getenv("MAX_ORDER_AMOUNT_IN_CENTS", "10000000000"))
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "50"))
+RATE_LIMIT_CATALOG_WINDOW_SECONDS = _env_int("RATE_LIMIT_CATALOG_WINDOW_SECONDS", RATE_LIMIT_WINDOW_SECONDS)
+RATE_LIMIT_CATALOG_MAX_REQUESTS = _env_int("RATE_LIMIT_CATALOG_MAX_REQUESTS", RATE_LIMIT_MAX_REQUESTS)
+RATE_LIMIT_CHECKOUT_WINDOW_SECONDS = _env_int("RATE_LIMIT_CHECKOUT_WINDOW_SECONDS", RATE_LIMIT_WINDOW_SECONDS)
+RATE_LIMIT_CHECKOUT_MAX_REQUESTS = _env_int("RATE_LIMIT_CHECKOUT_MAX_REQUESTS", RATE_LIMIT_MAX_REQUESTS)
+RATE_LIMIT_DIRECT_PAYMENT_WINDOW_SECONDS = _env_int("RATE_LIMIT_DIRECT_PAYMENT_WINDOW_SECONDS", RATE_LIMIT_WINDOW_SECONDS)
+RATE_LIMIT_DIRECT_PAYMENT_MAX_REQUESTS = _env_int("RATE_LIMIT_DIRECT_PAYMENT_MAX_REQUESTS", RATE_LIMIT_MAX_REQUESTS)
+RATE_LIMIT_RESULT_WINDOW_SECONDS = _env_int("RATE_LIMIT_RESULT_WINDOW_SECONDS", RATE_LIMIT_WINDOW_SECONDS)
+RATE_LIMIT_RESULT_MAX_REQUESTS = _env_int("RATE_LIMIT_RESULT_MAX_REQUESTS", RATE_LIMIT_MAX_REQUESTS)
+RATE_LIMIT_WEBHOOK_WINDOW_SECONDS = _env_int("RATE_LIMIT_WEBHOOK_WINDOW_SECONDS", RATE_LIMIT_WINDOW_SECONDS)
+RATE_LIMIT_WEBHOOK_MAX_REQUESTS = _env_int("RATE_LIMIT_WEBHOOK_MAX_REQUESTS", RATE_LIMIT_MAX_REQUESTS)
+IDEMPOTENCY_WINDOW_SECONDS = _env_int("IDEMPOTENCY_WINDOW_SECONDS", 900, 30)
+IDEMPOTENCY_KEY_MIN_LENGTH = _env_int("IDEMPOTENCY_KEY_MIN_LENGTH", 16, 8)
+IDEMPOTENCY_KEY_MAX_LENGTH = _env_int("IDEMPOTENCY_KEY_MAX_LENGTH", 128, IDEMPOTENCY_KEY_MIN_LENGTH)
+MAX_IDEMPOTENCY_CACHE_ENTRIES = _env_int("MAX_IDEMPOTENCY_CACHE_ENTRIES", 5000, 100)
+IDEMPOTENCY_ENFORCED_SCOPES = {
+    value.strip().lower()
+    for value in _split_csv(os.getenv("IDEMPOTENCY_ENFORCED_SCOPES", "checkout,direct-payment"))
+    if value.strip()
+}
 
 SMTP_HOST = os.getenv("SMTP_HOST")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
@@ -93,15 +179,18 @@ FACTURACION_EMAIL_CC = os.getenv("FACTURACION_EMAIL_CC", "")
 COMPANY_NAME = os.getenv("COMPANY_NAME", "Universo Mercantil")
 EMAIL_LOGO_URL = (os.getenv("EMAIL_LOGO_URL") or "").strip()
 SUPPORT_EMAIL = (os.getenv("SUPPORT_EMAIL") or SMTP_FROM or "").strip()
+AGREED_SHIPPING_ZONE = "Envío a convenir con el cliente"
+AGREED_SHIPPING_MESSAGE = "Nos contactaremos contigo para convenir el envío según tus necesidades específicas."
 
 SIIGO_API_BASE_URL = (os.getenv("SIIGO_API_BASE_URL") or "https://api.siigo.com").rstrip("/")
 SIIGO_PRODUCTS_PATH = (os.getenv("SIIGO_PRODUCTS_PATH") or "/v1/products").strip()
-SIIGO_USERNAME = (os.getenv("SIIGO_USERNAME") or "").strip()
+SIIGO_USERNAME = (os.getenv("SIIGO_USERNAME") or os.getenv("SIIGO_API_USER") or "").strip()
 SIIGO_ACCESS_KEY = (os.getenv("SIIGO_ACCESS_KEY") or "").strip()
 SIIGO_PARTNER_ID = (os.getenv("SIIGO_PARTNER_ID") or "").strip()
 SIIGO_REQUEST_TIMEOUT_SECONDS = float(os.getenv("SIIGO_REQUEST_TIMEOUT_SECONDS", "20"))
 SIIGO_TOKEN_SAFETY_SECONDS = int(os.getenv("SIIGO_TOKEN_SAFETY_SECONDS", "60"))
 SIIGO_MAX_PAGES = max(1, int(os.getenv("SIIGO_MAX_PAGES", "200")))
+SIIGO_CATALOG_CACHE_TTL_SECONDS = max(0, int(os.getenv("SIIGO_CATALOG_CACHE_TTL_SECONDS", "300")))
 SIIGO_FETCH_ALL_DEFAULT = (os.getenv("SIIGO_FETCH_ALL_DEFAULT", "true") or "true").strip().lower() in {
     "1", "true", "yes", "y", "on"
 }
@@ -110,6 +199,17 @@ SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT = (
 ).strip().lower() in {
     "1", "true", "yes", "y", "on"
 }
+SIIGO_SYNC_INVENTORY_ON_APPROVED = (
+    os.getenv("SIIGO_SYNC_INVENTORY_ON_APPROVED", "true") or "true"
+).strip().lower() in {"1", "true", "yes", "y", "on"}
+_siigo_inventory_update_path_default = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/")
+SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE = (
+    os.getenv("SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE")
+    or f"{_siigo_inventory_update_path_default}/{{product_id}}"
+).strip()
+SIIGO_INVENTORY_UPDATE_METHOD = (os.getenv("SIIGO_INVENTORY_UPDATE_METHOD", "PATCH") or "PATCH").strip().upper()
+if SIIGO_INVENTORY_UPDATE_METHOD not in {"PATCH", "PUT"}:
+    SIIGO_INVENTORY_UPDATE_METHOD = "PATCH"
 _siigo_manifest_path_raw = (os.getenv("SIIGO_IMAGE_MANIFEST_PATH") or "../frontend/scripts/siigo_imagenes.json").strip()
 SIIGO_IMAGE_MANIFEST_PATH = Path(_siigo_manifest_path_raw).expanduser()
 if not SIIGO_IMAGE_MANIFEST_PATH.is_absolute():
@@ -123,6 +223,9 @@ _siigo_image_index_cache: dict[str, object] = {
     "mtime": -1.0,
     "index": None,
 }
+_siigo_catalog_cache: dict[tuple[int, int, bool, int], dict[str, object]] = {}
+_idempotency_cache: dict[str, dict[str, object]] = {}
+IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
 
 if DB_ENABLED:
     init_database()
@@ -236,13 +339,22 @@ def compact_address(shipping: dict) -> str:
 
 
 def request_rate_limited(scope: str) -> bool:
+    scope_limits = {
+        "catalog-siigo": (RATE_LIMIT_CATALOG_WINDOW_SECONDS, RATE_LIMIT_CATALOG_MAX_REQUESTS),
+        "checkout": (RATE_LIMIT_CHECKOUT_WINDOW_SECONDS, RATE_LIMIT_CHECKOUT_MAX_REQUESTS),
+        "direct-payment": (RATE_LIMIT_DIRECT_PAYMENT_WINDOW_SECONDS, RATE_LIMIT_DIRECT_PAYMENT_MAX_REQUESTS),
+        "checkout-resultado": (RATE_LIMIT_RESULT_WINDOW_SECONDS, RATE_LIMIT_RESULT_MAX_REQUESTS),
+        "webhook": (RATE_LIMIT_WEBHOOK_WINDOW_SECONDS, RATE_LIMIT_WEBHOOK_MAX_REQUESTS),
+    }
+    window_seconds, max_requests = scope_limits.get(scope, (RATE_LIMIT_WINDOW_SECONDS, RATE_LIMIT_MAX_REQUESTS))
+
     now = time.time()
     remote_addr = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
     key = f"{scope}:{remote_addr}"
     window = _request_window.get(key, [])
-    window = [entry for entry in window if (now - entry) < RATE_LIMIT_WINDOW_SECONDS]
+    window = [entry for entry in window if (now - entry) < window_seconds]
 
-    if len(window) >= RATE_LIMIT_MAX_REQUESTS:
+    if len(window) >= max_requests:
         _request_window[key] = window
         return True
 
@@ -255,20 +367,111 @@ def is_allowed_origin() -> bool:
     if not ALLOWED_ORIGINS:
         return True
 
-    origin = (request.headers.get("Origin") or "").strip()
-    if origin in ALLOWED_ORIGINS:
+    origin = _normalize_origin(request.headers.get("Origin") or "")
+    if origin and origin in ALLOWED_ORIGINS:
         return True
 
     referer = (request.headers.get("Referer") or "").strip()
-    return any(referer.startswith(f"{allowed}/") or referer == allowed for allowed in ALLOWED_ORIGINS)
+    referer_origin = ""
+    if referer:
+        parsed_referer = urlparse(referer)
+        referer_origin = _normalize_origin(f"{parsed_referer.scheme}://{parsed_referer.netloc}")
+
+    return bool(referer_origin and referer_origin in ALLOWED_ORIGINS)
 
 
 def verify_api_key() -> bool:
-    if not BACKEND_API_KEY:
+    if not BACKEND_API_KEYS:
         return True
 
     provided = (request.headers.get("X-Api-Key") or "").strip()
-    return bool(provided) and hmac.compare_digest(provided, BACKEND_API_KEY)
+    if not provided:
+        return False
+
+    return any(hmac.compare_digest(provided, valid_key) for valid_key in BACKEND_API_KEYS)
+
+
+def _idempotency_remote_addr() -> str:
+    return request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip() or "unknown"
+
+
+def _cleanup_idempotency_cache(now_ts: float) -> None:
+    expired_keys = [
+        cache_key
+        for cache_key, payload in _idempotency_cache.items()
+        if float(payload.get("expires_at") or 0.0) <= now_ts
+    ]
+    for cache_key in expired_keys:
+        _idempotency_cache.pop(cache_key, None)
+
+    overflow = len(_idempotency_cache) - MAX_IDEMPOTENCY_CACHE_ENTRIES
+    if overflow <= 0:
+        return
+
+    sorted_keys = sorted(
+        _idempotency_cache.items(),
+        key=lambda item: float(item[1].get("expires_at") or 0.0),
+    )
+    for cache_key, _ in sorted_keys[:overflow]:
+        _idempotency_cache.pop(cache_key, None)
+
+
+def enforce_idempotency(scope: str) -> tuple[dict | None, tuple | object | None]:
+    normalized_scope = str(scope or "").strip().lower()
+    if normalized_scope not in IDEMPOTENCY_ENFORCED_SCOPES:
+        return None, None
+
+    key = (request.headers.get("X-Idempotency-Key") or request.headers.get("Idempotency-Key") or "").strip()
+    if not key:
+        return None, make_error("Falta cabecera X-Idempotency-Key", 400)
+
+    if not (IDEMPOTENCY_KEY_MIN_LENGTH <= len(key) <= IDEMPOTENCY_KEY_MAX_LENGTH):
+        return None, make_error("Idempotency-Key inválida", 400)
+
+    if not IDEMPOTENCY_KEY_PATTERN.match(key):
+        return None, make_error("Idempotency-Key inválida", 400)
+
+    request_hash = hashlib.sha256(request.get_data(cache=True) or b"").hexdigest()
+    now_ts = time.time()
+    _cleanup_idempotency_cache(now_ts)
+    cache_key = f"{normalized_scope}:{_idempotency_remote_addr()}:{key}"
+
+    cached = _idempotency_cache.get(cache_key)
+    if isinstance(cached, dict) and float(cached.get("expires_at") or 0.0) > now_ts:
+        if str(cached.get("request_hash") or "") != request_hash:
+            return None, make_error("La llave de idempotencia ya fue usada con otro payload", 409)
+
+        cached_status = parse_int(cached.get("status_code"), 0)
+        cached_response = cached.get("response")
+        if cached_status > 0 and isinstance(cached_response, dict):
+            replay_response = jsonify(cached_response)
+            replay_response.status_code = cached_status
+            replay_response.headers["X-Idempotency-Replayed"] = "true"
+            return None, replay_response
+
+        return None, make_error("Solicitud duplicada en proceso. Intenta nuevamente en unos segundos.", 409)
+
+    return {
+        "cache_key": cache_key,
+        "request_hash": request_hash,
+    }, None
+
+
+def store_idempotency_response(context: dict | None, response_payload: dict, status_code: int) -> None:
+    if not isinstance(context, dict):
+        return
+
+    cache_key = str(context.get("cache_key") or "").strip()
+    request_hash = str(context.get("request_hash") or "").strip()
+    if not cache_key or not request_hash:
+        return
+
+    _idempotency_cache[cache_key] = {
+        "expires_at": time.time() + IDEMPOTENCY_WINDOW_SECONDS,
+        "request_hash": request_hash,
+        "status_code": int(status_code),
+        "response": response_payload if isinstance(response_payload, dict) else {},
+    }
 
 
 def siigo_is_configured() -> bool:
@@ -677,7 +880,7 @@ def siigo_get_image_index() -> dict[str, object]:
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
-        logger.warning("No se pudo cargar manifest de imagenes Siigo (%s): %s", manifest_path, exc)
+        logger.warning("No se pudo cargar manifest de imágenes Siigo (%s): %s", manifest_path, exc)
         _siigo_image_index_cache["path"] = str(manifest_path)
         _siigo_image_index_cache["mtime"] = stat.st_mtime
         _siigo_image_index_cache["index"] = default_index
@@ -859,7 +1062,7 @@ def siigo_fetch_catalog_page(page: int, page_size: int) -> tuple[list[dict], dic
         try:
             response = requests.get(url, headers=headers, params=params, timeout=SIIGO_REQUEST_TIMEOUT_SECONDS)
         except requests.RequestException as exc:
-            logger.error("Error de red consultando catalogo de Siigo: %s", exc)
+            logger.error("Error de red consultando catálogo de Siigo: %s", exc)
             raise RuntimeError("siigo_products_request_failed") from exc
 
         try:
@@ -876,7 +1079,7 @@ def siigo_fetch_catalog_page(page: int, page_size: int) -> tuple[list[dict], dic
 
     if not response or response.status_code >= 400:
         status = response.status_code if response else "sin_respuesta"
-        logger.error("Error consultando catalogo Siigo (status=%s): %s", status, response_payload)
+        logger.error("Error consultando catálogo Siigo (status=%s): %s", status, response_payload)
         raise RuntimeError("siigo_products_request_failed")
 
     raw_items = siigo_extract_items(response_payload)
@@ -904,7 +1107,7 @@ def siigo_fetch_catalog(page: int, page_size: int, *, fetch_all: bool = False, m
 
     while len(visited_pages) < safe_max_pages:
         if current_page in visited_pages:
-            logger.warning("Se detecto bucle en paginacion de Siigo (pagina %s)", current_page)
+            logger.warning("Se detectó bucle en paginación de Siigo (página %s)", current_page)
             break
 
         visited_pages.add(current_page)
@@ -920,7 +1123,7 @@ def siigo_fetch_catalog(page: int, page_size: int, *, fetch_all: bool = False, m
         current_page = next_page if next_page > page_info["page"] else (page_info["page"] + 1)
 
     if len(visited_pages) >= safe_max_pages:
-        logger.warning("Se alcanzo el limite maximo de paginas al consultar Siigo (%s)", safe_max_pages)
+        logger.warning("Se alcanzó el límite máximo de páginas al consultar Siigo (%s)", safe_max_pages)
 
     deduplicated = siigo_deduplicate_items(aggregated_items)
     page_info = siigo_extract_pagination(last_payload, current_page, safe_page_size, 0)
@@ -936,6 +1139,329 @@ def siigo_fetch_catalog(page: int, page_size: int, *, fetch_all: bool = False, m
     }
 
     return deduplicated, synthetic_payload
+
+
+def siigo_fetch_catalog_cached(
+    page: int,
+    page_size: int,
+    *,
+    fetch_all: bool = False,
+    max_pages: int | None = None,
+) -> tuple[list[dict], dict, bool]:
+    safe_page = max(1, parse_int(page, 1))
+    safe_page_size = max(1, min(parse_int(page_size, 50), 200))
+    safe_max_pages = max(1, min(parse_int(max_pages, SIIGO_MAX_PAGES), SIIGO_MAX_PAGES))
+    cache_key = (safe_page, safe_page_size, bool(fetch_all), safe_max_pages)
+
+    if SIIGO_CATALOG_CACHE_TTL_SECONDS > 0:
+        now_ts = time.time()
+        cached = _siigo_catalog_cache.get(cache_key)
+        if isinstance(cached, dict):
+            expires_at = float(cached.get("expires_at") or 0.0)
+            if expires_at > now_ts:
+                cached_items = cached.get("items")
+                cached_payload = cached.get("payload")
+                if isinstance(cached_items, list) and isinstance(cached_payload, dict):
+                    return list(cached_items), dict(cached_payload), True
+
+    items, payload = siigo_fetch_catalog(
+        safe_page,
+        safe_page_size,
+        fetch_all=bool(fetch_all),
+        max_pages=safe_max_pages,
+    )
+
+    if SIIGO_CATALOG_CACHE_TTL_SECONDS > 0:
+        _siigo_catalog_cache[cache_key] = {
+            "expires_at": time.time() + SIIGO_CATALOG_CACHE_TTL_SECONDS,
+            "items": list(items),
+            "payload": dict(payload) if isinstance(payload, dict) else {},
+        }
+
+    return items, payload, False
+
+
+def siigo_clear_catalog_cache() -> None:
+    _siigo_catalog_cache.clear()
+
+
+def siigo_build_inventory_update_path(product_id: str) -> str:
+    product_id_raw = str(product_id or "").strip()
+    encoded_id = quote(product_id_raw, safe="")
+    template = (SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE or "").strip()
+
+    if not template:
+        base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/")
+        return f"{base_path}/{encoded_id}"
+
+    if "{product_id}" in template:
+        return template.format(product_id=encoded_id, raw_product_id=product_id_raw)
+
+    return f"{template.rstrip('/')}/{encoded_id}"
+
+
+def siigo_request_json(method: str, path: str, *, json_payload: dict | None = None) -> tuple[int, dict]:
+    method_name = (method or "GET").strip().upper() or "GET"
+    token = siigo_fetch_token()
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
+    if json_payload is not None:
+        headers["Content-Type"] = "application/json"
+    if SIIGO_PARTNER_ID:
+        headers["Partner-Id"] = SIIGO_PARTNER_ID
+
+    response = None
+    response_payload = {}
+    for attempt in range(2):
+        try:
+            response = requests.request(
+                method_name,
+                siigo_build_url(path),
+                headers=headers,
+                json=json_payload,
+                timeout=SIIGO_REQUEST_TIMEOUT_SECONDS,
+            )
+        except requests.RequestException as exc:
+            logger.error("Error de red en Siigo (%s %s): %s", method_name, path, exc)
+            raise RuntimeError("siigo_request_failed") from exc
+
+        try:
+            response_payload = response.json() if response.text else {}
+        except ValueError:
+            response_payload = {}
+
+        if response.status_code in {401, 403} and attempt == 0:
+            token = siigo_fetch_token(force_refresh=True)
+            headers["Authorization"] = f"Bearer {token}"
+            continue
+
+        break
+
+    status_code = response.status_code if response is not None else 502
+    return status_code, response_payload if isinstance(response_payload, dict) else {}
+
+
+def siigo_extract_product_payload(payload: dict) -> dict | None:
+    if not isinstance(payload, dict):
+        return None
+
+    data = payload.get("data")
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list):
+        for entry in data:
+            if isinstance(entry, dict):
+                return entry
+
+    for key in ("product", "item", "result"):
+        value = payload.get(key)
+        if isinstance(value, dict):
+            return value
+
+    # Some Siigo endpoints return the product object at the root level.
+    if any(key in payload for key in ("id", "code", "name", "available_quantity", "warehouses")):
+        return payload
+
+    return None
+
+
+def siigo_fetch_product_by_id(product_id: str) -> tuple[dict | None, str | None]:
+    product_id_raw = str(product_id or "").strip()
+    if not product_id_raw:
+        return None, "missing_product_id"
+
+    base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/")
+    path = f"{base_path}/{quote(product_id_raw, safe='')}"
+
+    try:
+        status_code, payload = siigo_request_json("GET", path)
+    except RuntimeError as exc:
+        return None, str(exc)
+
+    if status_code >= 400:
+        logger.error("Error consultando producto Siigo %s (status=%s): %s", product_id_raw, status_code, payload)
+        return None, f"status_{status_code}"
+
+    product = siigo_extract_product_payload(payload)
+    if not isinstance(product, dict):
+        return None, "product_payload_invalid"
+
+    return product, None
+
+
+def siigo_update_product_stock(product_id: str, new_stock: int) -> tuple[bool, str]:
+    product_id_raw = str(product_id or "").strip()
+    if not product_id_raw:
+        return False, "missing_product_id"
+
+    path = siigo_build_inventory_update_path(product_id_raw)
+    target_stock = max(0, parse_int(new_stock, 0))
+
+    payload_options = [
+        {"available_quantity": target_stock},
+        {"quantity_available": target_stock},
+        {"stock": target_stock},
+        {"quantity": target_stock},
+        {"inventory": {"available_quantity": target_stock}},
+        {"stock_control": {"stock": target_stock}},
+    ]
+
+    method_candidates: list[str] = []
+    for candidate in [SIIGO_INVENTORY_UPDATE_METHOD, "PATCH", "PUT"]:
+        normalized = (candidate or "").strip().upper()
+        if normalized and normalized not in method_candidates:
+            method_candidates.append(normalized)
+
+    last_error = "siigo_inventory_update_failed"
+    for method_name in method_candidates:
+        for payload in payload_options:
+            try:
+                status_code, response_payload = siigo_request_json(method_name, path, json_payload=payload)
+            except RuntimeError as exc:
+                last_error = str(exc)
+                continue
+
+            if status_code < 400:
+                return True, ""
+
+            if status_code == 404:
+                return False, "product_not_found"
+
+            last_error = f"status_{status_code}"
+            logger.warning(
+                "No se pudo actualizar inventario en Siigo (producto=%s, método=%s, status=%s): %s",
+                product_id_raw,
+                method_name,
+                status_code,
+                response_payload,
+            )
+
+    return False, last_error
+
+
+def siigo_sync_inventory_for_order(reference: str, order: dict) -> dict:
+    result = {
+        "ok": False,
+        "reference": reference,
+        "updated_items": 0,
+        "skipped_items": 0,
+        "failed_items": 0,
+        "details": [],
+        "synced_at": now_iso(),
+    }
+
+    if not SIIGO_SYNC_INVENTORY_ON_APPROVED:
+        result["ok"] = True
+        result["skipped"] = True
+        result["reason"] = "inventory_sync_disabled"
+        return result
+
+    if not siigo_is_configured():
+        result["reason"] = "siigo_not_configured"
+        return result
+
+    raw_items = order.get("items") if isinstance(order, dict) else []
+    if not isinstance(raw_items, list) or not raw_items:
+        result["ok"] = True
+        result["skipped"] = True
+        result["reason"] = "order_without_items"
+        return result
+
+    details: list[dict] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+
+        quantity = max(0, parse_int(item.get("cantidad"), 0))
+        if quantity <= 0:
+            result["skipped_items"] += 1
+            continue
+
+        product_id = str(item.get("id") or "").strip()
+        sku = str(item.get("sku") or "").strip()
+        product_label = str(item.get("nombre") or sku or product_id or "Producto").strip()
+
+        if not product_id:
+            result["failed_items"] += 1
+            details.append({
+                "product": product_label,
+                "sku": sku,
+                "quantity": quantity,
+                "status": "failed",
+                "reason": "missing_product_id",
+            })
+            continue
+
+        current_product, fetch_error = siigo_fetch_product_by_id(product_id)
+        if fetch_error or not current_product:
+            result["failed_items"] += 1
+            details.append({
+                "product": product_label,
+                "product_id": product_id,
+                "sku": sku,
+                "quantity": quantity,
+                "status": "failed",
+                "reason": fetch_error or "product_fetch_failed",
+            })
+            continue
+
+        current_stock = siigo_extract_stock(current_product)
+        target_stock = max(0, current_stock - quantity)
+
+        if target_stock == current_stock:
+            result["skipped_items"] += 1
+            details.append({
+                "product": product_label,
+                "product_id": product_id,
+                "sku": sku,
+                "quantity": quantity,
+                "status": "skipped",
+                "reason": "stock_unchanged",
+                "stock_before": current_stock,
+                "stock_after": target_stock,
+            })
+            continue
+
+        updated, update_error = siigo_update_product_stock(product_id, target_stock)
+        if not updated:
+            result["failed_items"] += 1
+            details.append({
+                "product": product_label,
+                "product_id": product_id,
+                "sku": sku,
+                "quantity": quantity,
+                "status": "failed",
+                "reason": update_error or "stock_update_failed",
+                "stock_before": current_stock,
+                "stock_after": target_stock,
+            })
+            continue
+
+        result["updated_items"] += 1
+        details.append({
+            "product": product_label,
+            "product_id": product_id,
+            "sku": sku,
+            "quantity": quantity,
+            "status": "updated",
+            "stock_before": current_stock,
+            "stock_after": target_stock,
+        })
+
+    result["details"] = details[:50]
+    result["ok"] = result["failed_items"] == 0
+
+    if result["updated_items"] > 0:
+        siigo_clear_catalog_cache()
+        result["cache_invalidated"] = True
+
+    if not result["ok"] and "reason" not in result:
+        result["reason"] = "inventory_sync_partial_failure"
+
+    return result
 
 
 def extract_signature_from_headers() -> str:
@@ -971,11 +1497,11 @@ def verify_webhook_signature(raw_payload: bytes) -> bool:
 
 def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict | None, str | None]:
     if not isinstance(data, dict):
-        return None, "Payload invalido"
+        return None, "Payload inválido"
 
     customer_email = (data.get("customer_email") or "").strip()
     if not validate_email(customer_email):
-        return None, "Email invalido"
+        return None, "Email inválido"
 
     raw_items = data.get("items") or []
     if not isinstance(raw_items, list) or not raw_items:
@@ -985,12 +1511,12 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
     items_total = 0
     for item in raw_items:
         if not isinstance(item, dict):
-            return None, "Formato de item invalido"
+            return None, "Formato de item inválido"
 
         quantity = parse_int(item.get("cantidad"), 0)
         price = parse_int(item.get("precio"), -1)
         if quantity < 1 or price < 0:
-            return None, "Cantidad o precio invalido"
+            return None, "Cantidad o precio inválido"
 
         subtotal = quantity * price
         items_total += subtotal
@@ -1010,26 +1536,27 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
             "product_url": product_url_value,
         })
 
-    shipping_cost = max(0, parse_int(data.get("shipping_cost"), 0))
+    shipping_cost = 0
     delivery_type = (data.get("delivery_type") or "shipping").lower()
     if delivery_type not in {"shipping", "pickup"}:
-        return None, "Tipo de entrega invalido"
-
-    if delivery_type == "pickup":
-        shipping_cost = 0
+        return None, "Tipo de entrega inválido"
 
     payment_method = ("direct" if is_direct_payment else (data.get("payment_method") or "wompi")).lower()
     if payment_method not in {"wompi", "direct"}:
-        return None, "Metodo de pago invalido"
+        return None, "Método de pago inválido"
 
     subtotal = items_total
     amount_in_cents = (subtotal + shipping_cost) * 100
     if amount_in_cents < MIN_ORDER_AMOUNT_IN_CENTS:
-        return None, "El valor total del pedido no alcanza el minimo permitido"
+        return None, "El valor total del pedido no alcanza el mínimo permitido"
     if amount_in_cents > MAX_ORDER_AMOUNT_IN_CENTS:
-        return None, "El valor total del pedido excede el maximo permitido"
+        return None, "El valor total del pedido excede el máximo permitido"
 
     shipping_address = data.get("shipping_address") if isinstance(data.get("shipping_address"), dict) else {}
+    shipping_zone = "Recoger en tienda" if delivery_type == "pickup" else AGREED_SHIPPING_ZONE
+    shipping_message = ""
+    if delivery_type == "shipping":
+        shipping_message = (data.get("shipping_message") or AGREED_SHIPPING_MESSAGE).strip() or AGREED_SHIPPING_MESSAGE
     if delivery_type == "pickup":
         shipping_address = {}
 
@@ -1047,7 +1574,8 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
         "items": normalized_items,
         "subtotal": subtotal,
         "shipping_cost": shipping_cost,
-        "shipping_zone": data.get("shipping_zone") or "Zona Nacional",
+        "shipping_zone": shipping_zone,
+        "shipping_message": shipping_message,
         "delivery_type": delivery_type,
         "payment_method": payment_method,
         "pickup_message": data.get("pickup_message") or "",
@@ -1066,19 +1594,19 @@ def build_checkout_result_ui(sync: dict | None) -> dict:
     if sync_status == "ok":
         tone = "success"
         title = "Pago confirmado"
-        subtitle = "Tu pago fue validado correctamente y tu pedido esta en proceso."
+        subtitle = "Tu pago fue validado correctamente y tu pedido está en proceso."
     elif sync_status == "error":
         tone = "error"
         title = "No se pudo confirmar el pago"
-        subtitle = "Hubo un problema procesando la confirmacion. Intenta nuevamente o contactanos."
+        subtitle = "Hubo un problema procesando la confirmación. Intenta nuevamente o contáctanos."
     elif sync_status == "ignored" and "DECLINED" in reason:
         tone = "error"
         title = "Pago rechazado"
-        subtitle = "La pasarela reporto que el pago fue rechazado. Puedes intentarlo de nuevo con otro metodo."
+        subtitle = "La pasarela reportó que el pago fue rechazado. Puedes intentarlo de nuevo con otro método."
     elif sync_status == "ignored":
         tone = "warning"
-        title = "Pago en revision"
-        subtitle = "Aun no tenemos una aprobacion final del pago."
+        title = "Pago en revisión"
+        subtitle = "Aún no tenemos una aprobación final del pago."
 
     detail = (sync or {}).get("message") or reason or "Sin detalle adicional"
 
@@ -1153,11 +1681,11 @@ def consultar_transaccion_wompi(transaction_id: str) -> dict:
         resp = requests.get(f"{WOMPI_URL}/transactions/{transaction_id}", headers=headers, timeout=20)
         payload = resp.json()
     except Exception as exc:
-        logger.error("Error consultando transaccion %s: %s", transaction_id, exc)
+        logger.error("Error consultando transacción %s: %s", transaction_id, exc)
         return {}
 
     if resp.status_code >= 400:
-        logger.error("Error Wompi transaccion %s: %s", transaction_id, payload)
+        logger.error("Error Wompi transacción %s: %s", transaction_id, payload)
         return {}
 
     return payload.get("data", {})
@@ -1201,8 +1729,29 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
     if tx_status != "APPROVED":
         return {"status": "ignored", "reason": f"transaction_status_{tx_status or 'unknown'}"}, 200
 
+    inventory_sync = {
+        "ok": bool(order.get("inventory_synced")),
+        "status": "already_synced" if order.get("inventory_synced") else "pending",
+        "reference": matched_reference,
+    }
+
+    if not order.get("inventory_synced"):
+        inventory_sync = siigo_sync_inventory_for_order(matched_reference, order)
+        sync_ok = bool(inventory_sync.get("ok"))
+
+        upsert_order(matched_reference, {
+            "inventory_synced": sync_ok,
+            "inventory_synced_at": now_iso() if sync_ok else None,
+            "inventory_sync_error": None if sync_ok else (inventory_sync.get("reason") or "inventory_sync_failed"),
+            "inventory_sync_report": inventory_sync,
+            "status": "approved_inventory_synced" if sync_ok else "approved_inventory_pending_sync",
+        })
+
+        if not sync_ok:
+            logger.warning("No se pudo sincronizar inventario Siigo para %s: %s", matched_reference, inventory_sync)
+
     if order.get("email_notified"):
-        return {"status": "ok", "message": "already_notified"}, 200
+        return {"status": "ok", "message": "already_notified", "inventory_sync": inventory_sync}, 200
 
     sent, detail = enviar_correos_compra_aprobada(order, tx)
 
@@ -1214,10 +1763,10 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
     })
 
     if not sent:
-        logger.error("Error correo facturacion (%s): %s", matched_reference, detail)
-        return {"status": "error", "message": "email_not_sent"}, 500
+        logger.error("Error correo facturación (%s): %s", matched_reference, detail)
+        return {"status": "error", "message": "email_not_sent", "inventory_sync": inventory_sync}, 500
 
-    return {"status": "ok", "message": "email_sent"}, 200
+    return {"status": "ok", "message": "email_sent", "inventory_sync": inventory_sync}, 200
 
 
 def build_order_email_context(order: dict, transaction: dict) -> dict:
@@ -1228,8 +1777,13 @@ def build_order_email_context(order: dict, transaction: dict) -> dict:
     payment_method = (order.get("payment_method") or (transaction or {}).get("payment_method_type") or "N/A").upper()
     delivery_type = (order.get("delivery_type") or "shipping").lower()
     shipping_cost = int(order.get("shipping_cost") or 0)
+    if delivery_type != "pickup":
+        shipping_cost = 0
     subtotal = int(order.get("subtotal") or max(total_amount - shipping_cost, 0))
-    shipping_zone = order.get("shipping_zone") or "N/A"
+    shipping_zone = order.get("shipping_zone") or ("Recoger en tienda" if delivery_type == "pickup" else AGREED_SHIPPING_ZONE)
+    shipping_message = ""
+    if delivery_type == "shipping":
+        shipping_message = (order.get("shipping_message") or AGREED_SHIPPING_MESSAGE).strip() or AGREED_SHIPPING_MESSAGE
 
     tx_customer = (transaction or {}).get("customer_data") or {}
     tx_billing = (transaction or {}).get("billing_data") or {}
@@ -1288,6 +1842,7 @@ def build_order_email_context(order: dict, transaction: dict) -> dict:
         "delivery_type": delivery_type,
         "shipping_cost": shipping_cost,
         "shipping_zone": shipping_zone,
+        "shipping_message": shipping_message,
         "subtotal": subtotal,
         "total": total_amount,
         "buyer": buyer,
@@ -1295,7 +1850,7 @@ def build_order_email_context(order: dict, transaction: dict) -> dict:
         "buyer_email": buyer_email,
         "shipping": shipping,
         "shipping_summary": compact_address(shipping),
-        "pickup_message": order.get("pickup_message") or "Tu pedido estara disponible para entrega en tienda en 5 horas habiles.",
+        "pickup_message": order.get("pickup_message") or "Tu pedido estará disponible para entrega en tienda en 5 horas hábiles.",
         "items": items,
         "tx_id": tx_id,
         "tx_status": tx_status,
@@ -1322,7 +1877,7 @@ def build_html_kv_table(rows: list[tuple[str, str]]) -> str:
 
 def build_items_html(items: list[dict], currency: str, *, include_product_links: bool) -> str:
     if not items:
-        return "<p style='margin:0;color:#5d6b7a;font-size:13px;'>No se recibio detalle de productos para este pedido.</p>"
+        return "<p style='margin:0;color:#5d6b7a;font-size:13px;'>No se recibió detalle de productos para este pedido.</p>"
 
     rows = []
     for item in items:
@@ -1414,8 +1969,8 @@ def wrap_email_html(title: str, subtitle: str, content_html: str) -> str:
           </tr>
           <tr>
             <td style="padding:14px 24px 20px 24px;background:#f8fbff;color:#637489;font-size:12px;line-height:1.5;text-align:center;">
-              Este correo fue generado automaticamente por {escape_html(COMPANY_NAME)}.<br>
-              Si tienes preguntas, responde a este correo o escribenos a {footer_support}.
+              Este correo fue generado automáticamente por {escape_html(COMPANY_NAME)}.<br>
+              Si tienes preguntas, responde a este correo o escríbenos a {footer_support}.
             </td>
           </tr>
         </table>
@@ -1434,13 +1989,13 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
 
     summary_rows = [
         ("Referencia", reference),
-        ("Transaccion Wompi", context["tx_id"]),
+        ("Transacción Wompi", context["tx_id"]),
         ("Estado", status),
-        ("Metodo de pago", context["payment_method"]),
+        ("Método de pago", context["payment_method"]),
         ("Tipo de entrega", "Recoger en tienda" if context["delivery_type"] == "pickup" else "Enviar a domicilio"),
-        ("Zona de envio", context["shipping_zone"]),
+        ("Modalidad de envío", context["shipping_zone"]),
+        ("Condición del envío", "Sin costo (recoger en tienda)" if context["delivery_type"] == "pickup" else "A convenir con el cliente (no incluido en el pago online)"),
         ("Subtotal", format_currency(context["subtotal"], currency)),
-        ("Costo de envio", format_currency(context["shipping_cost"], currency)),
         ("Total pagado", format_currency(context["total"], currency)),
     ]
 
@@ -1448,7 +2003,7 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
     buyer_rows = [
         ("Nombre", context["buyer_full_name"]),
         ("Documento", buyer.get("numero_documento") or "N/A"),
-        ("Telefono", buyer.get("telefono") or "N/A"),
+        ("Teléfono", buyer.get("telefono") or "N/A"),
         ("Email", context["buyer_email"] or "N/A"),
     ]
 
@@ -1460,8 +2015,10 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
     else:
         shipping = context["shipping"]
         delivery_rows = [
-            ("Tipo", "Envio a domicilio"),
-            ("Direccion", context["shipping_summary"]),
+            ("Tipo", "Envío a domicilio"),
+            ("Condición", "El envío se coordina por llamada"),
+            ("Mensaje", context["shipping_message"]),
+            ("Dirección", context["shipping_summary"]),
             ("Departamento", shipping.get("departamento") or "N/A"),
             ("Ciudad", shipping.get("ciudad") or "N/A"),
         ]
@@ -1487,18 +2044,18 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
         f"Nueva compra aprobada ({status}).",
         "",
         f"Referencia: {reference}",
-        f"Transaccion Wompi: {context['tx_id']}",
-        f"Metodo de pago: {context['payment_method']}",
+        f"Transacción Wompi: {context['tx_id']}",
+        f"Método de pago: {context['payment_method']}",
         f"Tipo de entrega: {'Recoger en tienda' if context['delivery_type'] == 'pickup' else 'Enviar a domicilio'}",
-        f"Zona de envio: {context['shipping_zone']}",
+        f"Modalidad de envío: {context['shipping_zone']}",
+        f"Condición del envío: {'Sin costo (recoger en tienda)' if context['delivery_type'] == 'pickup' else 'A convenir con el cliente (no incluido en el pago online)'}",
         f"Subtotal: {format_currency(context['subtotal'], currency)}",
-        f"Envio: {format_currency(context['shipping_cost'], currency)}",
         f"Total: {format_currency(context['total'], currency)}",
         "",
         "Datos del comprador:",
         f"- Nombre: {context['buyer_full_name']}",
         f"- Documento: {buyer.get('numero_documento') or 'N/A'}",
-        f"- Telefono: {buyer.get('telefono') or 'N/A'}",
+        f"- Teléfono: {buyer.get('telefono') or 'N/A'}",
         f"- Email: {context['buyer_email'] or 'N/A'}",
         "",
         "Productos:",
@@ -1517,7 +2074,7 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
             if item.get("product_url"):
                 text_lines.append(f"  URL: {item['product_url']}")
 
-    subject = f"[Facturacion] Compra aprobada {reference}"
+    subject = f"[Facturación] Compra aprobada {reference}"
     return subject, "\n".join(text_lines), html_body
 
 
@@ -1528,10 +2085,11 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
 
     summary_rows = [
         ("Referencia de pedido", reference),
-        ("Transaccion", context["tx_id"]),
-        ("Metodo de pago", context["payment_method"]),
+        ("Transacción", context["tx_id"]),
+        ("Método de pago", context["payment_method"]),
+        ("Modalidad de envío", context["shipping_zone"]),
+        ("Condición del envío", "Sin costo (recoger en tienda)" if context["delivery_type"] == "pickup" else "A convenir con el cliente (no incluido en este pago)"),
         ("Subtotal", format_currency(context["subtotal"], currency)),
-        ("Costo de envio", format_currency(context["shipping_cost"], currency)),
         ("Total pagado", format_currency(context["total"], currency)),
     ]
 
@@ -1542,9 +2100,10 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
         ]
     else:
         delivery_rows = [
-            ("Tipo de entrega", "Envio a domicilio"),
-            ("Zona", context["shipping_zone"]),
-            ("Direccion", context["shipping_summary"]),
+            ("Tipo de entrega", "Envío a domicilio"),
+            ("Condición", "El envío se coordina por llamada"),
+            ("Mensaje", context["shipping_message"]),
+            ("Dirección", context["shipping_summary"]),
         ]
 
     content_html = (
@@ -1560,7 +2119,7 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
 
     html_body = wrap_email_html(
         title=f"Compra aprobada - Pedido {reference}",
-        subtitle="Tu compra fue confirmada y ya esta en proceso.",
+        subtitle="Tu compra fue confirmada y ya está en proceso.",
         content_html=content_html,
     )
 
@@ -1569,10 +2128,11 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
         "",
         "Tu pago fue aprobado correctamente.",
         f"Referencia del pedido: {reference}",
-        f"Transaccion: {context['tx_id']}",
-        f"Metodo de pago: {context['payment_method']}",
+        f"Transacción: {context['tx_id']}",
+        f"Método de pago: {context['payment_method']}",
+        f"Modalidad de envío: {context['shipping_zone']}",
+        f"Condición del envío: {'Sin costo (recoger en tienda)' if context['delivery_type'] == 'pickup' else 'A convenir con el cliente (no incluido en este pago)'}",
         f"Subtotal: {format_currency(context['subtotal'], currency)}",
-        f"Envio: {format_currency(context['shipping_cost'], currency)}",
         f"Total pagado: {format_currency(context['total'], currency)}",
         "",
         "Productos:",
@@ -1636,7 +2196,7 @@ def enviar_correos_compra_aprobada(order: dict, transaction: dict) -> tuple[bool
 
     customer_email = (context.get("buyer_email") or "").strip()
     if not validate_email(customer_email):
-        return False, "No fue posible determinar un email valido para el cliente"
+        return False, "No fue posible determinar un email válido para el cliente"
 
     internal_subject, internal_text, internal_html = build_internal_email_content(context)
     internal_sent, internal_detail = send_email_message(
@@ -1672,9 +2232,16 @@ def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https:"
     return response
+
+
+@app.errorhandler(413)
+def request_entity_too_large(_error):
+    return make_error(f"Payload demasiado grande. Máximo permitido: {MAX_REQUEST_BODY_BYTES} bytes", 413)
 
 
 @app.route("/health", methods=["GET"])
@@ -1703,7 +2270,7 @@ def catalogo_siigo():
         return make_error("Acceso no autorizado", 401)
 
     if not siigo_is_configured():
-        return make_error("Integracion de Siigo no configurada", 503)
+        return make_error("Integración de Siigo no configurada", 503)
 
     page = max(1, parse_int(request.args.get("page"), 1))
     page_size = max(1, min(parse_int(request.args.get("page_size"), 50), 200))
@@ -1716,14 +2283,19 @@ def catalogo_siigo():
     )
 
     try:
-        items, siigo_payload = siigo_fetch_catalog(page, page_size, fetch_all=fetch_all, max_pages=max_pages)
+        items, siigo_payload, cache_hit = siigo_fetch_catalog_cached(
+            page,
+            page_size,
+            fetch_all=fetch_all,
+            max_pages=max_pages,
+        )
     except RuntimeError as exc:
         reason = str(exc)
         if reason in {"siigo_auth_failed", "siigo_auth_request_failed"}:
             return make_error("No fue posible autenticar con Siigo", 502)
         if reason == "siigo_not_configured":
-            return make_error("Integracion de Siigo no configurada", 503)
-        return make_error("No fue posible consultar el catalogo de Siigo", 502)
+            return make_error("Integración de Siigo no configurada", 503)
+        return make_error("No fue posible consultar el catálogo de Siigo", 502)
 
     filtered_items = [item for item in items if siigo_matches_query(item, query)]
     items_before_image_filter = len(filtered_items)
@@ -1742,7 +2314,7 @@ def catalogo_siigo():
             hide_without_image_applied = True
         else:
             logger.info(
-                "Filtro hide_without_image solicitado, pero no hay manifest de imagenes o rutas directas disponibles."
+                "Filtro hide_without_image solicitado, pero no hay manifest de imágenes o rutas directas disponibles."
             )
 
     pagination_info = siigo_extract_pagination(siigo_payload or {}, page, page_size, len(items))
@@ -1766,6 +2338,11 @@ def catalogo_siigo():
         "image_manifest_available": image_manifest_available,
         "items_before_image_filter": items_before_image_filter,
         "hidden_without_image_count": hidden_without_image_count,
+        "cache": {
+            "enabled": SIIGO_CATALOG_CACHE_TTL_SECONDS > 0,
+            "hit": cache_hit,
+            "ttl_seconds": SIIGO_CATALOG_CACHE_TTL_SECONDS,
+        },
         "total": total,
         "items": filtered_items,
         "synced_at": now_iso(),
@@ -1787,6 +2364,10 @@ def checkout():
     if not verify_api_key():
         return make_error("Acceso no autorizado", 401)
 
+    idempotency_context, idempotency_response = enforce_idempotency("checkout")
+    if idempotency_response is not None:
+        return idempotency_response
+
     data = request.get_json(force=True)
 
     normalized_payload, validation_error = validate_order_payload(data, is_direct_payment=False)
@@ -1805,6 +2386,7 @@ def checkout():
     subtotal = normalized_payload["subtotal"]
     shipping_cost = normalized_payload["shipping_cost"]
     shipping_zone = normalized_payload["shipping_zone"]
+    shipping_message = normalized_payload["shipping_message"]
     delivery_type = normalized_payload["delivery_type"]
     payment_method = normalized_payload["payment_method"]
     pickup_message = normalized_payload["pickup_message"]
@@ -1855,6 +2437,7 @@ def checkout():
             "subtotal": subtotal,
             "shipping_cost": shipping_cost,
             "shipping_zone": shipping_zone,
+            "shipping_message": shipping_message,
             "delivery_type": delivery_type,
             "payment_method": payment_method,
             "pickup_message": pickup_message,
@@ -1868,7 +2451,9 @@ def checkout():
         })
 
     if link:
-        return jsonify({"checkout_url": link}), 201
+        response_payload = {"checkout_url": link}
+        store_idempotency_response(idempotency_context, response_payload, 201)
+        return jsonify(response_payload), 201
 
     logger.error("Error creando payment link en Wompi (status=%s)", response.status_code)
     return make_error("No fue posible iniciar el pago en este momento", 502)
@@ -1888,6 +2473,10 @@ def create_order_for_direct_payment():
     if not verify_api_key():
         return make_error("Acceso no autorizado", 401)
 
+    idempotency_context, idempotency_response = enforce_idempotency("direct-payment")
+    if idempotency_response is not None:
+        return idempotency_response
+
     data = request.get_json(force=True)
     normalized_payload, validation_error = validate_order_payload(data, is_direct_payment=True)
     if validation_error:
@@ -1904,6 +2493,7 @@ def create_order_for_direct_payment():
     payment_method = "direct"
     shipping_cost = normalized_payload["shipping_cost"]
     shipping_zone = normalized_payload["shipping_zone"]
+    shipping_message = normalized_payload["shipping_message"]
 
     upsert_order(reference, {
         "amount_in_cents": amount_in_cents,
@@ -1914,6 +2504,7 @@ def create_order_for_direct_payment():
         "subtotal": normalized_payload["subtotal"],
         "shipping_cost": shipping_cost,
         "shipping_zone": shipping_zone,
+        "shipping_message": shipping_message,
         "delivery_type": delivery_type,
         "payment_method": payment_method,
         "pickup_message": normalized_payload["pickup_message"],
@@ -1924,11 +2515,13 @@ def create_order_for_direct_payment():
         "email_notified": False,
     })
 
-    return jsonify({
+    response_payload = {
         "ok": True,
         "reference": reference,
         "status": "pending_payment"
-    }), 201
+    }
+    store_idempotency_response(idempotency_context, response_payload, 201)
+    return jsonify(response_payload), 201
 
 
 @app.route("/checkout/resultado", methods=["GET", "OPTIONS"])
@@ -1964,12 +2557,12 @@ def webhook():
 
     raw_payload = request.get_data(cache=True)
     if not verify_webhook_signature(raw_payload):
-        logger.warning("Intento de webhook con firma invalida")
-        return make_error("Firma de webhook invalida", 401)
+        logger.warning("Intento de webhook con firma inválida")
+        return make_error("Firma de webhook inválida", 401)
 
     evento = request.get_json(silent=True) or {}
     if not isinstance(evento, dict):
-        return make_error("Payload invalido", 400)
+        return make_error("Payload inválido", 400)
 
     logger.info("Webhook recibido")
 

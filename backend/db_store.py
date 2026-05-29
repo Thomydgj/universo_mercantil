@@ -6,7 +6,13 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+_DATABASE_URL_RAW = (os.getenv("DATABASE_URL") or "").strip()
+if _DATABASE_URL_RAW.startswith("postgresql://"):
+    DATABASE_URL = _DATABASE_URL_RAW.replace("postgresql://", "postgresql+psycopg://", 1)
+elif _DATABASE_URL_RAW.startswith("postgres://"):
+    DATABASE_URL = _DATABASE_URL_RAW.replace("postgres://", "postgresql+psycopg://", 1)
+else:
+    DATABASE_URL = _DATABASE_URL_RAW
 DB_ENABLED = bool(DATABASE_URL)
 
 _engine = None
@@ -71,11 +77,19 @@ def init_database() -> None:
                 email_notified BOOLEAN DEFAULT FALSE,
                 email_notified_at TEXT,
                 email_error TEXT,
+                inventory_synced BOOLEAN DEFAULT FALSE,
+                inventory_synced_at TEXT,
+                inventory_sync_error TEXT,
+                inventory_sync_report_json TEXT,
                 created_at TEXT,
                 updated_at TEXT
             )
             """
         ))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_synced BOOLEAN DEFAULT FALSE"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_synced_at TEXT"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_sync_error TEXT"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_sync_report_json TEXT"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_payment_link_id ON orders (payment_link_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_transaction_id ON orders (transaction_id)"))
 
@@ -146,6 +160,10 @@ def _serialize_order(order: dict[str, Any]) -> dict[str, Any]:
         "email_notified": bool(order.get("email_notified")),
         "email_notified_at": order.get("email_notified_at"),
         "email_error": order.get("email_error"),
+        "inventory_synced": bool(order.get("inventory_synced")),
+        "inventory_synced_at": order.get("inventory_synced_at"),
+        "inventory_sync_error": order.get("inventory_sync_error"),
+        "inventory_sync_report_json": json.dumps(order.get("inventory_sync_report") or {}, ensure_ascii=False),
         "created_at": order.get("created_at") or now_iso(),
         "updated_at": order.get("updated_at") or now_iso(),
     }
@@ -172,14 +190,18 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
             buyer_json, shipping_address_json, payment_link_id, payment_link_url,
             transaction_id, transaction_status, wompi_reference, last_sync_source,
             webhook_received_at, redirect_sync_at, status,
-            email_notified, email_notified_at, email_error, created_at, updated_at
+            email_notified, email_notified_at, email_error,
+            inventory_synced, inventory_synced_at, inventory_sync_error, inventory_sync_report_json,
+            created_at, updated_at
         ) VALUES (
             :reference, :amount_in_cents, :currency, :customer_email, :name, :description,
             :subtotal, :shipping_cost, :shipping_zone, :delivery_type, :payment_method, :pickup_message,
             :buyer_json, :shipping_address_json, :payment_link_id, :payment_link_url,
             :transaction_id, :transaction_status, :wompi_reference, :last_sync_source,
             :webhook_received_at, :redirect_sync_at, :status,
-            :email_notified, :email_notified_at, :email_error, :created_at, :updated_at
+            :email_notified, :email_notified_at, :email_error,
+            :inventory_synced, :inventory_synced_at, :inventory_sync_error, :inventory_sync_report_json,
+            :created_at, :updated_at
         )
         ON CONFLICT (reference) DO UPDATE SET
             amount_in_cents = EXCLUDED.amount_in_cents,
@@ -207,6 +229,10 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
             email_notified = EXCLUDED.email_notified,
             email_notified_at = EXCLUDED.email_notified_at,
             email_error = EXCLUDED.email_error,
+            inventory_synced = EXCLUDED.inventory_synced,
+            inventory_synced_at = EXCLUDED.inventory_synced_at,
+            inventory_sync_error = EXCLUDED.inventory_sync_error,
+            inventory_sync_report_json = EXCLUDED.inventory_sync_report_json,
             updated_at = EXCLUDED.updated_at
         """
     )
@@ -249,6 +275,7 @@ def _parse_order_row(row: dict[str, Any], items: list[dict[str, Any]]) -> dict[s
     order = dict(row)
     order["buyer"] = json.loads(order.pop("buyer_json") or "{}")
     order["shipping_address"] = json.loads(order.pop("shipping_address_json") or "{}")
+    order["inventory_sync_report"] = json.loads(order.pop("inventory_sync_report_json") or "{}")
     order["items"] = items
     return order
 

@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS orders (
     email_notified BOOLEAN DEFAULT FALSE,
     email_notified_at TEXT,
     email_error TEXT,
+    inventory_synced BOOLEAN DEFAULT FALSE,
+    inventory_synced_at TEXT,
+    inventory_sync_error TEXT,
+    inventory_sync_report_json TEXT,
     created_at TEXT,
     updated_at TEXT
 );

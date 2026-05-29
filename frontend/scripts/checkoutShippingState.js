@@ -1,47 +1,14 @@
 (function () {
-  const FALLBACK_ZONE = { id: "zona-default", nombre: "Zona Nacional", precio: 20000 };
+  const AGREED_SHIPPING_ZONE = "Envío a convenir con el cliente";
+  const AGREED_SHIPPING_MESSAGE = "Nos contactaremos contigo para convenir el envío según tus necesidades específicas.";
 
   const state = window.checkoutState || {
     shippingCost: 0,
-    shippingZone: "Zona Nacional",
+    shippingZone: AGREED_SHIPPING_ZONE,
     shippingDepartment: "",
-    deliveryType: "shipping"
+    deliveryType: "shipping",
+    shippingMessage: AGREED_SHIPPING_MESSAGE
   };
-
-  let zones = [];
-  let zoneMap = new Map();
-
-  function normalizeDepartment(value) {
-    return String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-  }
-
-  function buildZoneMap(zoneList) {
-    const map = new Map();
-    zoneList.forEach(zone => {
-      if (!Array.isArray(zone.departamentos)) return;
-      zone.departamentos.forEach(dep => {
-        const key = normalizeDepartment(dep);
-        if (key) map.set(key, zone);
-      });
-    });
-    return map;
-  }
-
-  function getDefaultZone() {
-    return zones.find(zone => zone.id === "zona-default") || FALLBACK_ZONE;
-  }
-
-  function getZoneForDepartment(department) {
-    const key = normalizeDepartment(department);
-    if (!key) return getDefaultZone();
-    return zoneMap.get(key) || getDefaultZone();
-  }
 
   function emitUpdate() {
     const detail = { ...state };
@@ -51,11 +18,17 @@
 
   function recalculate() {
     const deliveryType = state.deliveryType === "pickup" ? "pickup" : "shipping";
-    const zone = getZoneForDepartment(state.shippingDepartment);
-
     state.deliveryType = deliveryType;
-    state.shippingCost = deliveryType === "pickup" ? 0 : (Number(zone.precio) || 0);
-    state.shippingZone = deliveryType === "pickup" ? "Recoger en tienda" : zone.nombre;
+
+    if (deliveryType === "pickup") {
+      state.shippingCost = 0;
+      state.shippingZone = "Recoger en tienda";
+      state.shippingMessage = "";
+    } else {
+      state.shippingCost = 0;
+      state.shippingZone = AGREED_SHIPPING_ZONE;
+      state.shippingMessage = AGREED_SHIPPING_MESSAGE;
+    }
 
     emitUpdate();
   }
@@ -70,10 +43,16 @@
     recalculate();
   }
 
-  function setZones(zoneList) {
-    zones = Array.isArray(zoneList) ? zoneList : [];
-    zoneMap = buildZoneMap(zones);
+  function setZones() {
     recalculate();
+  }
+
+  function getZoneForDepartment() {
+    return {
+      id: "zona-convenir",
+      nombre: AGREED_SHIPPING_ZONE,
+      precio: 0
+    };
   }
 
   function getState() {
@@ -93,4 +72,6 @@
     getState,
     refresh
   };
+
+  recalculate();
 })();

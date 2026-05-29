@@ -5,12 +5,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const SALES_WHATSAPP_NUMBER = runtimeConfig.whatsapp || "573001234567";
   const BACKEND_API_KEY = runtimeConfig.apiKey || "";
 
-  const buildRequestHeaders = () => {
+  const buildRequestHeaders = (idempotencyKey = "") => {
     const headers = { "Content-Type": "application/json" };
     if (BACKEND_API_KEY) {
       headers["X-Api-Key"] = BACKEND_API_KEY;
     }
+    if (idempotencyKey) {
+      headers["X-Idempotency-Key"] = idempotencyKey;
+    }
     return headers;
+  };
+
+  const buildIdempotencyKey = scope => {
+    const baseScope = String(scope || "checkout").replace(/[^a-z0-9_-]/gi, "").toLowerCase() || "checkout";
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return `${baseScope}-${window.crypto.randomUUID()}`;
+    }
+    const randomPart = Math.random().toString(16).slice(2);
+    return `${baseScope}-${Date.now()}-${randomPart}`;
   };
 
   const notify = (message, type) => {
@@ -36,19 +48,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (!window.datosEnvioConfirmados) {
-      notify("Debes confirmar primero los datos de envio.", "warning");
+      notify("Debes confirmar primero los datos de envío.", "warning");
       return;
     }
 
     if (!carrito || carrito.length === 0) {
-      notify("Tu carrito esta vacio.", "warning");
+      notify("Tu carrito está vacío.", "warning");
       return;
     }
 
     const carritoActual = JSON.parse(localStorage.getItem("carrito")) || carrito;
 
     const subtotal = calcularSubtotal();
-    const shipping_cost = Number(window.datosEnvioConfirmados?.shippingCost || 0);
+    const shipping_cost = 0;
     const total = subtotal + shipping_cost;
     const amount_in_cents = total * 100;
     const WOMPI_MIN_AMOUNT_IN_CENTS = 150000; // 1500 COP
@@ -58,12 +70,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (paymentMethod === "wompi" && amount_in_cents < WOMPI_MIN_AMOUNT_IN_CENTS) {
       const minimoCop = Math.round(WOMPI_MIN_AMOUNT_IN_CENTS / 100);
       const faltanteCop = Math.round((WOMPI_MIN_AMOUNT_IN_CENTS - amount_in_cents) / 100);
-      notify(`El monto minimo para pagar con Wompi es $${minimoCop.toLocaleString("es-CO")}. Te faltan $${faltanteCop.toLocaleString("es-CO")}.`, "warning");
+      notify(`El monto mínimo para pagar con Wompi es $${minimoCop.toLocaleString("es-CO")}. Te faltan $${faltanteCop.toLocaleString("es-CO")}.`, "warning");
       return;
     }
 
     const reference = "orden_" + Date.now();
     const customer_email = document.getElementById("email")?.value || "cliente@ejemplo.com";
+    const idempotencyKey = buildIdempotencyKey(paymentMethod === "direct" ? "direct-payment" : "checkout");
 
     const buyer = {
       nombre: window.datosEnvioConfirmados?.nombre || "",
@@ -109,9 +122,10 @@ document.addEventListener("DOMContentLoaded", () => {
       single_use: true,
       subtotal,
       shipping_cost,
-      shipping_zone: window.datosEnvioConfirmados?.shippingZone || "Zona Nacional",
+      shipping_zone: window.datosEnvioConfirmados?.shippingZone || "Envío a convenir con el cliente",
       delivery_type: deliveryType,
       payment_method: paymentMethod,
+      shipping_message: window.datosEnvioConfirmados?.shippingMessage || "Nos contactaremos contigo para convenir el envío según tus necesidades específicas.",
       pickup_message: window.datosEnvioConfirmados?.pickupMessage || "",
       buyer,
       shipping_address: deliveryType === "pickup" ? {} : shipping_address,
@@ -123,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
         notify("Creando pedido con pago pendiente...", "info");
         const directRes = await fetch(`${BACKEND_BASE_URL}/order/create-for-payment`, {
           method: "POST",
-          headers: buildRequestHeaders(),
+          headers: buildRequestHeaders(idempotencyKey),
           body: JSON.stringify(payload)
         });
 
@@ -132,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           directData = directRaw ? JSON.parse(directRaw) : {};
         } catch {
-          throw new Error(`Respuesta invalida del servidor (${directRes.status})`);
+          throw new Error(`Respuesta inválida del servidor (${directRes.status})`);
         }
 
         if (!directRes.ok) {
@@ -163,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const res = await fetch(`${BACKEND_BASE_URL}/checkout`, {
         method: "POST",
-        headers: buildRequestHeaders(),
+        headers: buildRequestHeaders(idempotencyKey),
         body: JSON.stringify(payload)
       });
 
@@ -172,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         data = raw ? JSON.parse(raw) : {};
       } catch {
-        throw new Error(`Respuesta invalida del servidor (${res.status})`);
+        throw new Error(`Respuesta inválida del servidor (${res.status})`);
       }
 
       if (!res.ok) {
@@ -183,7 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const checkoutUrl = data?.checkout_url || (data?.data?.id ? `https://checkout.wompi.co/l/${data.data.id}` : null);
 
       if (!checkoutUrl) {
-        throw new Error("No se recibio checkout_url desde backend");
+        throw new Error("No se recibió checkout_url desde backend");
       }
 
       if (paymentTab && !paymentTab.closed) {
