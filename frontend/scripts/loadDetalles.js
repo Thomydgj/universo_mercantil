@@ -43,6 +43,9 @@ const catalogoModalComprar = document.getElementById("catalogo-modal-comprar");
 const CATALOGO_REAL_ITEMS_POR_PAGINA = 24;
 const CATALOGO_REAL_MAX_INTENTOS_CONSULTA = 3;
 const CATALOGO_REAL_RETRY_DELAY_MS = 900;
+const CATALOGO_REAL_API_PAGE_SIZE = Math.max(20, Math.min(Number(runtimeConfig.siigoCatalogPageSize || 120), 200));
+const CATALOGO_REAL_API_MAX_PAGES = Math.max(1, Number(runtimeConfig.siigoCatalogMaxPages || 25));
+const CATALOGO_REAL_MAX_ITEMS = Math.max(0, Number(runtimeConfig.siigoCatalogMaxItems || 0));
 const CATALOGO_REAL_CACHE_TTL_MS = Math.max(0, Number(runtimeConfig.siigoCatalogCacheTtlMs || 300000));
 const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:${backendBaseUrl || "default"}`;
 const FILTROS_CATALOGO_SIIGO = [
@@ -1395,65 +1398,115 @@ function renderizarCatalogoRealPaginado(productoBase, itemsSiigo, opciones = {})
   pintarPagina();
 }
 
-async function consultarCatalogoRealSiigo(query) {
+async function consultarCatalogoRealSiigo(query, opciones = {}) {
   const cache = leerCacheCatalogoReal(query);
   if (Array.isArray(cache)) {
     return cache;
   }
 
-  const params = new URLSearchParams({
-    page: "1",
-    page_size: "80",
-    fetch_all: "true"
-  });
+  const onProgress = typeof opciones.onProgress === "function" ? opciones.onProgress : null;
   const q = normalizarTexto(query);
-  if (q) {
-    params.set("q", q);
-  }
-
   const esEstadoReintentable = status => [408, 425, 429, 500, 502, 503, 504].includes(status);
   const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
-  let ultimoError = null;
 
-  for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
-    try {
-      const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
-        method: "GET",
-        headers: construirHeadersBackend()
-      });
+  const consultarPagina = async pagina => {
+    const params = new URLSearchParams({
+      page: String(pagina),
+      page_size: String(CATALOGO_REAL_API_PAGE_SIZE),
+      fetch_all: "false"
+    });
+    if (q) {
+      params.set("q", q);
+    }
 
-      const payloadText = await response.text();
-      let payload = {};
+    let ultimoError = null;
+    for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
       try {
-        payload = payloadText ? JSON.parse(payloadText) : {};
-      } catch {
-        payload = {};
+        const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
+          method: "GET",
+          headers: construirHeadersBackend()
+        });
+
+        const payloadText = await response.text();
+        let payload = {};
+        try {
+          payload = payloadText ? JSON.parse(payloadText) : {};
+        } catch {
+          payload = {};
+        }
+
+        if (!response.ok || !payload.ok) {
+          const error = new Error(payload.message || `Error HTTP ${response.status}`);
+          error.status = response.status;
+          throw error;
+        }
+
+        return payload;
+      } catch (error) {
+        ultimoError = error;
+        const status = Number(error?.status || 0);
+        const reintentable = !status || esEstadoReintentable(status);
+        const ultimoIntento = intento >= CATALOGO_REAL_MAX_INTENTOS_CONSULTA;
+
+        if (!reintentable || ultimoIntento) {
+          break;
+        }
+
+        await esperar(CATALOGO_REAL_RETRY_DELAY_MS * intento);
+      }
+    }
+
+    throw ultimoError || new Error("No se pudo consultar el catálogo comercial.");
+  };
+
+  const acumulado = [];
+  const vistos = new Set();
+
+  for (let pagina = 1; pagina <= CATALOGO_REAL_API_MAX_PAGES; pagina += 1) {
+    if (onProgress) {
+      onProgress(pagina);
+    }
+
+    const payload = await consultarPagina(pagina);
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const pageSizeRespuesta = Math.max(1, Number(payload.page_size || CATALOGO_REAL_API_PAGE_SIZE));
+    const paginaRespuesta = Math.max(1, Number(payload.page || pagina));
+    const totalRespuesta = Number(payload.total);
+
+    items.forEach(item => {
+      const clave = [
+        normalizarTexto(item?.id).toLowerCase(),
+        normalizarTexto(item?.sku).toLowerCase(),
+        normalizarTexto(item?.nombre).toLowerCase()
+      ].join("|");
+
+      if (vistos.has(clave)) {
+        return;
       }
 
-      if (!response.ok || !payload.ok) {
-        const error = new Error(payload.message || `Error HTTP ${response.status}`);
-        error.status = response.status;
-        throw error;
-      }
+      vistos.add(clave);
+      acumulado.push(item);
+    });
 
-      const items = Array.isArray(payload.items) ? payload.items : [];
-      guardarCacheCatalogoReal(query, items);
-      return items;
-    } catch (error) {
-      ultimoError = error;
-      const status = Number(error?.status || 0);
-      const reintentable = !status || esEstadoReintentable(status);
-      const ultimoIntento = intento >= CATALOGO_REAL_MAX_INTENTOS_CONSULTA;
+    if (CATALOGO_REAL_MAX_ITEMS > 0 && acumulado.length >= CATALOGO_REAL_MAX_ITEMS) {
+      break;
+    }
 
-      if (!reintentable || ultimoIntento) {
-        break;
-      }
+    const alcanzoTotal = Number.isFinite(totalRespuesta) && totalRespuesta >= 0
+      ? (paginaRespuesta * pageSizeRespuesta) >= totalRespuesta
+      : false;
+    const ultimaPaginaPorTamano = items.length < pageSizeRespuesta;
 
-      await esperar(CATALOGO_REAL_RETRY_DELAY_MS * intento);
+    if (alcanzoTotal || ultimaPaginaPorTamano || !items.length) {
+      break;
     }
   }
 
-  throw ultimoError || new Error("No se pudo consultar el catálogo comercial.");
+  const resultado = CATALOGO_REAL_MAX_ITEMS > 0
+    ? acumulado.slice(0, CATALOGO_REAL_MAX_ITEMS)
+    : acumulado;
+  guardarCacheCatalogoReal(query, resultado);
+  return resultado;
 }
 
 async function cargarCatalogoRealSiigo(productoBase) {
@@ -1478,7 +1531,11 @@ async function cargarCatalogoRealSiigo(productoBase) {
       cargarManifestImagenesSiigo(),
       cargarManifestDescripcionesSiigo()
     ]);
-    const itemsSiigo = await consultarCatalogoRealSiigo("");
+    const itemsSiigo = await consultarCatalogoRealSiigo("", {
+      onProgress: pagina => {
+        actualizarEstadoCatalogoReal(`Consultando catálogo comercial (página ${pagina})...`, "loading");
+      }
+    });
 
     if (!itemsSiigo.length) {
       actualizarEstadoCatalogoReal("No encontramos referencias en este momento.", "warning");

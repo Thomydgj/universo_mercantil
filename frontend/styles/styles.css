@@ -2665,6 +2665,15 @@ h2::after {
     color: #ffffff;
 }
 
+.chip-categoria.activa,
+.chip-categoria.activa:hover,
+.chip-categoria.activa:focus,
+.chip-categoria.activa:active,
+.chip-categoria.activa:visited {
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+}
+
 .container-productos{
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -2975,10 +2984,15 @@ h2::after {
   color: white;
   border: none;
     font-size: 1.6rem;
+    line-height: 1;
   cursor: pointer;
     width: 40px;
     height: 40px;
+        padding: 0;
     border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   z-index: 1;
 }
 
@@ -3251,6 +3265,15 @@ h2::after {
     color: #ffffff;
 }
 
+.catalogo-real-filtro-btn.is-active,
+.catalogo-real-filtro-btn.is-active:hover,
+.catalogo-real-filtro-btn.is-active:focus,
+.catalogo-real-filtro-btn.is-active:active,
+.catalogo-real-filtro-btn.is-active:focus-visible {
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+}
+
 .catalogo-real-filtro-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
@@ -3500,11 +3523,16 @@ body.catalogo-modal-open {
     transform: translateY(-50%);
     width: 34px;
     height: 34px;
+    padding: 0;
     border-radius: 50%;
     border: none;
     background: rgba(3, 77, 153, 0.75);
     color: #ffffff;
     font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
 }
 
