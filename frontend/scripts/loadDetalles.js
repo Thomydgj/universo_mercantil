@@ -1403,6 +1403,7 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
       page: String(pagina),
       page_size: String(CATALOGO_REAL_API_PAGE_SIZE),
       fetch_all: "false",
+      // Pedimos sin filtro de imagen para evitar huecos de paginación en backend.
       hide_without_image: "false"
     });
     if (q) {
@@ -1500,7 +1501,7 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
       ? (paginaRespuesta * pageSizeRespuesta) >= totalRespuesta
       : false;
 
-    if (!items.length || alcanzoTotal || paginasConsecutivasSinNuevos >= 2) {
+    if (alcanzoTotal || paginasConsecutivasSinNuevos >= 3) {
       break;
     }
   }
@@ -1540,7 +1541,9 @@ async function cargarCatalogoRealSiigo(productoBase) {
       }
     });
 
-    if (!itemsSiigo.length) {
+    const itemsConImagen = itemsSiigo.filter(item => resolverImagenesSiigo(item).length > 0);
+
+    if (!itemsConImagen.length) {
       actualizarEstadoCatalogoReal("No encontramos referencias en este momento.", "warning");
       catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Aún no hay referencias disponibles. Cuando exista inventario activo aparecerá aquí con SKU, precio y cantidad.</p>";
       limpiarPaginacionCatalogoReal();
@@ -1554,7 +1557,7 @@ async function cargarCatalogoRealSiigo(productoBase) {
       renderizarFiltrosCatalogoReal(filtroActivo, aplicarFiltro);
 
       const filtroActual = obtenerFiltroCatalogoPorId(filtroActivo);
-      const itemsFiltrados = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
+      const itemsFiltrados = filtrarItemsCatalogoPorFiltro(itemsConImagen, filtroActivo);
       const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroActivo);
 
       if (!itemsOrdenados.length) {
