@@ -43,11 +43,8 @@ const catalogoModalComprar = document.getElementById("catalogo-modal-comprar");
 const CATALOGO_REAL_ITEMS_POR_PAGINA = 24;
 const CATALOGO_REAL_MAX_INTENTOS_CONSULTA = 3;
 const CATALOGO_REAL_RETRY_DELAY_MS = 900;
-const CATALOGO_REAL_API_PAGE_SIZE = Math.max(20, Math.min(Number(runtimeConfig.siigoCatalogPageSize || 120), 200));
-const CATALOGO_REAL_API_MAX_PAGES = Math.max(1, Number(runtimeConfig.siigoCatalogMaxPages || 200));
-const CATALOGO_REAL_MAX_ITEMS = Math.max(0, Number(runtimeConfig.siigoCatalogMaxItems || 0));
 const CATALOGO_REAL_CACHE_TTL_MS = Math.max(0, Number(runtimeConfig.siigoCatalogCacheTtlMs || 300000));
-const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:v2:${backendBaseUrl || "default"}`;
+const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:${backendBaseUrl || "default"}`;
 const FILTROS_CATALOGO_SIIGO = [
   { id: "todos", label: "Todos", categoriasSiigo: [] },
   { id: "carnicos", label: "Cárnicos", categoriasSiigo: ["fundas", "termoencogible"] },
@@ -629,8 +626,19 @@ const limpiarFiltrosCatalogoReal = () => {
   catalogoRealFiltros.innerHTML = "";
 };
 
-const resolverFiltroInicialCatalogo = () => {
-  // Evita que el usuario vea solo una subcategoría al entrar al detalle.
+const resolverFiltroInicialCatalogo = productoBase => {
+  const categoriaIds = Array.isArray(productoBase?.categorias) ? productoBase.categorias : [];
+  const tipos = new Set();
+
+  categoriaIds.forEach(categoriaId => {
+    const categoriaEncontrada = categoriasCatalogo.find(categoria => categoria?.id === categoriaId);
+    const tiposCategoria = Array.isArray(categoriaEncontrada?.tipo) ? categoriaEncontrada.tipo : [];
+    tiposCategoria.forEach(tipo => tipos.add(normalizarCategoriaSiigoTexto(tipo)));
+  });
+
+  if (tipos.has("carnicos")) return "carnicos";
+  if (tipos.has("termoformados") || tipos.has("termoformado")) return "termoformados";
+  if (tipos.has("flexibles") || tipos.has("flexible")) return "flexibles";
   return "todos";
 };
 
@@ -1387,130 +1395,65 @@ function renderizarCatalogoRealPaginado(productoBase, itemsSiigo, opciones = {})
   pintarPagina();
 }
 
-async function consultarCatalogoRealSiigo(query, opciones = {}) {
+async function consultarCatalogoRealSiigo(query) {
   const cache = leerCacheCatalogoReal(query);
   if (Array.isArray(cache)) {
     return cache;
   }
 
-  const onProgress = typeof opciones.onProgress === "function" ? opciones.onProgress : null;
+  const params = new URLSearchParams({
+    page: "1",
+    page_size: "80",
+    fetch_all: "true"
+  });
   const q = normalizarTexto(query);
+  if (q) {
+    params.set("q", q);
+  }
+
   const esEstadoReintentable = status => [408, 425, 429, 500, 502, 503, 504].includes(status);
   const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
+  let ultimoError = null;
 
-  const consultarPagina = async pagina => {
-    const params = new URLSearchParams({
-      page: String(pagina),
-      page_size: String(CATALOGO_REAL_API_PAGE_SIZE),
-      fetch_all: "false",
-      // Pedimos sin filtro de imagen para evitar huecos de paginación en backend.
-      hide_without_image: "false"
-    });
-    if (q) {
-      params.set("q", q);
-    }
+  for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
+    try {
+      const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
+        method: "GET",
+        headers: construirHeadersBackend()
+      });
 
-    let ultimoError = null;
-    for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
+      const payloadText = await response.text();
+      let payload = {};
       try {
-        const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
-          method: "GET",
-          headers: construirHeadersBackend()
-        });
-
-        const payloadText = await response.text();
-        let payload = {};
-        try {
-          payload = payloadText ? JSON.parse(payloadText) : {};
-        } catch {
-          payload = {};
-        }
-
-        if (!response.ok || !payload.ok) {
-          const error = new Error(payload.message || `Error HTTP ${response.status}`);
-          error.status = response.status;
-          throw error;
-        }
-
-        return payload;
-      } catch (error) {
-        ultimoError = error;
-        const status = Number(error?.status || 0);
-        const reintentable = !status || esEstadoReintentable(status);
-        const ultimoIntento = intento >= CATALOGO_REAL_MAX_INTENTOS_CONSULTA;
-
-        if (!reintentable || ultimoIntento) {
-          break;
-        }
-
-        await esperar(CATALOGO_REAL_RETRY_DELAY_MS * intento);
-      }
-    }
-
-    throw ultimoError || new Error("No se pudo consultar el catálogo comercial.");
-  };
-
-  const acumulado = [];
-  const vistos = new Set();
-  let paginasConsecutivasSinNuevos = 0;
-
-  for (let pagina = 1; pagina <= CATALOGO_REAL_API_MAX_PAGES; pagina += 1) {
-    if (onProgress) {
-      onProgress(pagina);
-    }
-
-    const payload = await consultarPagina(pagina);
-    const items = Array.isArray(payload.items) ? payload.items : [];
-    const pageSizeRespuesta = Math.max(1, Number(payload.page_size || CATALOGO_REAL_API_PAGE_SIZE));
-    const paginaRespuesta = Math.max(1, Number(payload.page || pagina));
-    const totalRespuesta = Number(payload.total);
-
-    const totalAntes = acumulado.length;
-
-    items.forEach(item => {
-      const idKey = normalizarTexto(item?.id).toLowerCase();
-      const skuKey = normalizarTexto(item?.sku).toLowerCase();
-      const nombreKey = normalizarTexto(item?.nombre).toLowerCase();
-      const precioKey = normalizarTexto(item?.precio).toLowerCase();
-      const stockKey = normalizarTexto(item?.cantidad).toLowerCase();
-      const categoriaRaw = Array.isArray(item?.categorias)
-        ? item.categorias.join(",")
-        : (item?.categoria || "");
-      const categoriaKey = normalizarTexto(categoriaRaw).toLowerCase();
-
-      const clave = (idKey || skuKey)
-        ? `idsku|${idKey}|${skuKey}`
-        : `fallback|${nombreKey}|${precioKey}|${stockKey}|${categoriaKey}`;
-
-      if (vistos.has(clave)) {
-        return;
+        payload = payloadText ? JSON.parse(payloadText) : {};
+      } catch {
+        payload = {};
       }
 
-      vistos.add(clave);
-      acumulado.push(item);
-    });
+      if (!response.ok || !payload.ok) {
+        const error = new Error(payload.message || `Error HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
 
-    const nuevosEnPagina = acumulado.length - totalAntes;
-    paginasConsecutivasSinNuevos = nuevosEnPagina > 0 ? 0 : (paginasConsecutivasSinNuevos + 1);
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      guardarCacheCatalogoReal(query, items);
+      return items;
+    } catch (error) {
+      ultimoError = error;
+      const status = Number(error?.status || 0);
+      const reintentable = !status || esEstadoReintentable(status);
+      const ultimoIntento = intento >= CATALOGO_REAL_MAX_INTENTOS_CONSULTA;
 
-    if (CATALOGO_REAL_MAX_ITEMS > 0 && acumulado.length >= CATALOGO_REAL_MAX_ITEMS) {
-      break;
-    }
+      if (!reintentable || ultimoIntento) {
+        break;
+      }
 
-    const alcanzoTotal = Number.isFinite(totalRespuesta) && totalRespuesta >= 0
-      ? (paginaRespuesta * pageSizeRespuesta) >= totalRespuesta
-      : false;
-
-    if (alcanzoTotal || paginasConsecutivasSinNuevos >= 3) {
-      break;
+      await esperar(CATALOGO_REAL_RETRY_DELAY_MS * intento);
     }
   }
 
-  const resultado = CATALOGO_REAL_MAX_ITEMS > 0
-    ? acumulado.slice(0, CATALOGO_REAL_MAX_ITEMS)
-    : acumulado;
-  guardarCacheCatalogoReal(query, resultado);
-  return resultado;
+  throw ultimoError || new Error("No se pudo consultar el catálogo comercial.");
 }
 
 async function cargarCatalogoRealSiigo(productoBase) {
@@ -1535,15 +1478,9 @@ async function cargarCatalogoRealSiigo(productoBase) {
       cargarManifestImagenesSiigo(),
       cargarManifestDescripcionesSiigo()
     ]);
-    const itemsSiigo = await consultarCatalogoRealSiigo("", {
-      onProgress: pagina => {
-        actualizarEstadoCatalogoReal(`Consultando catálogo comercial (página ${pagina})...`, "loading");
-      }
-    });
+    const itemsSiigo = await consultarCatalogoRealSiigo("");
 
-    const itemsConImagen = itemsSiigo.filter(item => resolverImagenesSiigo(item).length > 0);
-
-    if (!itemsConImagen.length) {
+    if (!itemsSiigo.length) {
       actualizarEstadoCatalogoReal("No encontramos referencias en este momento.", "warning");
       catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Aún no hay referencias disponibles. Cuando exista inventario activo aparecerá aquí con SKU, precio y cantidad.</p>";
       limpiarPaginacionCatalogoReal();
@@ -1557,7 +1494,7 @@ async function cargarCatalogoRealSiigo(productoBase) {
       renderizarFiltrosCatalogoReal(filtroActivo, aplicarFiltro);
 
       const filtroActual = obtenerFiltroCatalogoPorId(filtroActivo);
-      const itemsFiltrados = filtrarItemsCatalogoPorFiltro(itemsConImagen, filtroActivo);
+      const itemsFiltrados = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
       const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroActivo);
 
       if (!itemsOrdenados.length) {
