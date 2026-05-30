@@ -6,7 +6,7 @@ services:
     rootDir: backend
     autoDeploy: true
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 2 --timeout 120 --max-requests 300 --max-requests-jitter 40
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -47,6 +47,8 @@ services:
         value: "20"
       - key: SIIGO_TOKEN_SAFETY_SECONDS
         value: "60"
+      - key: SIIGO_MAX_PAGES
+        value: "25"
       - key: SIIGO_CATALOG_CACHE_TTL_SECONDS
         value: "300"
       - key: SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT
