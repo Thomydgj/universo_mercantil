@@ -44,10 +44,10 @@ const CATALOGO_REAL_ITEMS_POR_PAGINA = 24;
 const CATALOGO_REAL_MAX_INTENTOS_CONSULTA = 3;
 const CATALOGO_REAL_RETRY_DELAY_MS = 900;
 const CATALOGO_REAL_API_PAGE_SIZE = Math.max(20, Math.min(Number(runtimeConfig.siigoCatalogPageSize || 120), 200));
-const CATALOGO_REAL_API_MAX_PAGES = Math.max(1, Number(runtimeConfig.siigoCatalogMaxPages || 25));
+const CATALOGO_REAL_API_MAX_PAGES = Math.max(1, Number(runtimeConfig.siigoCatalogMaxPages || 200));
 const CATALOGO_REAL_MAX_ITEMS = Math.max(0, Number(runtimeConfig.siigoCatalogMaxItems || 0));
 const CATALOGO_REAL_CACHE_TTL_MS = Math.max(0, Number(runtimeConfig.siigoCatalogCacheTtlMs || 300000));
-const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:${backendBaseUrl || "default"}`;
+const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:v2:${backendBaseUrl || "default"}`;
 const FILTROS_CATALOGO_SIIGO = [
   { id: "todos", label: "Todos", categoriasSiigo: [] },
   { id: "carnicos", label: "Cárnicos", categoriasSiigo: ["fundas", "termoencogible"] },
@@ -629,19 +629,8 @@ const limpiarFiltrosCatalogoReal = () => {
   catalogoRealFiltros.innerHTML = "";
 };
 
-const resolverFiltroInicialCatalogo = productoBase => {
-  const categoriaIds = Array.isArray(productoBase?.categorias) ? productoBase.categorias : [];
-  const tipos = new Set();
-
-  categoriaIds.forEach(categoriaId => {
-    const categoriaEncontrada = categoriasCatalogo.find(categoria => categoria?.id === categoriaId);
-    const tiposCategoria = Array.isArray(categoriaEncontrada?.tipo) ? categoriaEncontrada.tipo : [];
-    tiposCategoria.forEach(tipo => tipos.add(normalizarCategoriaSiigoTexto(tipo)));
-  });
-
-  if (tipos.has("carnicos")) return "carnicos";
-  if (tipos.has("termoformados") || tipos.has("termoformado")) return "termoformados";
-  if (tipos.has("flexibles") || tipos.has("flexible")) return "flexibles";
+const resolverFiltroInicialCatalogo = () => {
+  // Evita que el usuario vea solo una subcategoría al entrar al detalle.
   return "todos";
 };
 
@@ -1413,7 +1402,8 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
     const params = new URLSearchParams({
       page: String(pagina),
       page_size: String(CATALOGO_REAL_API_PAGE_SIZE),
-      fetch_all: "false"
+      fetch_all: "false",
+      hide_without_image: "false"
     });
     if (q) {
       params.set("q", q);
@@ -1461,6 +1451,7 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
 
   const acumulado = [];
   const vistos = new Set();
+  let paginasConsecutivasSinNuevos = 0;
 
   for (let pagina = 1; pagina <= CATALOGO_REAL_API_MAX_PAGES; pagina += 1) {
     if (onProgress) {
@@ -1473,12 +1464,22 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
     const paginaRespuesta = Math.max(1, Number(payload.page || pagina));
     const totalRespuesta = Number(payload.total);
 
+    const totalAntes = acumulado.length;
+
     items.forEach(item => {
-      const clave = [
-        normalizarTexto(item?.id).toLowerCase(),
-        normalizarTexto(item?.sku).toLowerCase(),
-        normalizarTexto(item?.nombre).toLowerCase()
-      ].join("|");
+      const idKey = normalizarTexto(item?.id).toLowerCase();
+      const skuKey = normalizarTexto(item?.sku).toLowerCase();
+      const nombreKey = normalizarTexto(item?.nombre).toLowerCase();
+      const precioKey = normalizarTexto(item?.precio).toLowerCase();
+      const stockKey = normalizarTexto(item?.cantidad).toLowerCase();
+      const categoriaRaw = Array.isArray(item?.categorias)
+        ? item.categorias.join(",")
+        : (item?.categoria || "");
+      const categoriaKey = normalizarTexto(categoriaRaw).toLowerCase();
+
+      const clave = (idKey || skuKey)
+        ? `idsku|${idKey}|${skuKey}`
+        : `fallback|${nombreKey}|${precioKey}|${stockKey}|${categoriaKey}`;
 
       if (vistos.has(clave)) {
         return;
@@ -1488,6 +1489,9 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
       acumulado.push(item);
     });
 
+    const nuevosEnPagina = acumulado.length - totalAntes;
+    paginasConsecutivasSinNuevos = nuevosEnPagina > 0 ? 0 : (paginasConsecutivasSinNuevos + 1);
+
     if (CATALOGO_REAL_MAX_ITEMS > 0 && acumulado.length >= CATALOGO_REAL_MAX_ITEMS) {
       break;
     }
@@ -1495,9 +1499,8 @@ async function consultarCatalogoRealSiigo(query, opciones = {}) {
     const alcanzoTotal = Number.isFinite(totalRespuesta) && totalRespuesta >= 0
       ? (paginaRespuesta * pageSizeRespuesta) >= totalRespuesta
       : false;
-    const ultimaPaginaPorTamano = items.length < pageSizeRespuesta;
 
-    if (alcanzoTotal || ultimaPaginaPorTamano || !items.length) {
+    if (!items.length || alcanzoTotal || paginasConsecutivasSinNuevos >= 2) {
       break;
     }
   }
