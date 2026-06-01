@@ -40,12 +40,12 @@
   // Construye chips de categorías
   if (filtroCategoriasEl) {
     const chips = [
-      `<a href="productos.html" class="chip-categoria ${categoriaSeleccionada ? "" : "activa"}">Todas</a>`
+      `<a href="/productos" class="chip-categoria ${categoriaSeleccionada ? "" : "activa"}">Todas</a>`
     ];
 
     categoriasDisponibles.forEach(cat => {
       chips.push(
-        `<a href="productos.html?categoria=${cat}" class="chip-categoria ${categoriaSeleccionada === cat ? "activa" : ""}">${nombresCategorias[cat] || cat}</a>`
+        `<a href="/productos?categoria=${cat}" class="chip-categoria ${categoriaSeleccionada === cat ? "activa" : ""}">${nombresCategorias[cat] || cat}</a>`
       );
     });
 
@@ -111,7 +111,7 @@
       ? imagenesProducto[0]
       : "";
 
-    card.querySelector("a").href = `detalles.html?${paramsDetalle.toString()}`;
+    card.querySelector("a").href = `/detalles?${paramsDetalle.toString()}`;
     card.querySelector("img").src = imagenPrincipal;
     card.querySelector("img").alt = p.nombre;
     card.querySelector("img").loading = "lazy";

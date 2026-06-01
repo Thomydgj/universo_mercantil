@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
         precio,
         subtotal: precio * cantidad,
         imagen: item.imagen || "",
-        product_url: productId ? `detalles.html?id=${encodeURIComponent(productId)}` : ""
+        product_url: productId ? `detalles?id=${encodeURIComponent(productId)}` : ""
       };
     });
 

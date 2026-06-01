@@ -27,12 +27,12 @@
 
   if (filtroTiposEl) {
     const chips = [
-      `<a href="categorias.html" class="chip-categoria ${tipoSeleccionado ? "" : "activa"}">Todos</a>`
+      `<a href="/categorias" class="chip-categoria ${tipoSeleccionado ? "" : "activa"}">Todos</a>`
     ];
 
     tiposDisponibles.forEach(tipo => {
       chips.push(
-        `<a href="categorias.html?tipo=${tipo}" class="chip-categoria ${tipoSeleccionado === tipo ? "activa" : ""}">${nombresTipos[tipo] || tipo}</a>`
+        `<a href="/categorias?tipo=${tipo}" class="chip-categoria ${tipoSeleccionado === tipo ? "activa" : ""}">${nombresTipos[tipo] || tipo}</a>`
       );
     });
 
@@ -88,7 +88,7 @@
     card.querySelector("img").alt = c.nombre;
     card.querySelector("img").loading = "lazy";
     card.querySelector(".nombre-categoria").textContent = c.nombre;
-    card.querySelector(".link-categoria").href = `productos.html?categoria=${c.id}`;
+    card.querySelector(".link-categoria").href = `/productos?categoria=${c.id}`;
     container.appendChild(card);
   });
 });

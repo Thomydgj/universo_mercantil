@@ -318,6 +318,9 @@ def normalize_public_url(raw_value: str) -> str:
     if value.startswith("//"):
         return f"https:{value}"
 
+    if value.startswith("/"):
+        return f"{FRONTEND_BASE_URL}{value}"
+
     if value.startswith("index.html"):
         return f"{FRONTEND_BASE_URL}{value}"
 
@@ -1818,7 +1821,7 @@ def build_order_email_context(order: dict, transaction: dict) -> dict:
         product_id = str(item.get("id") or "").strip()
         product_link_raw = (item.get("product_url") or "").strip()
         if not product_link_raw and product_id:
-            product_link_raw = f"detalles.html?id={product_id}"
+            product_link_raw = f"detalles?id={product_id}"
 
         items.append({
             "line": index,
@@ -2398,7 +2401,7 @@ def checkout():
         "currency": currency,
         "reference": reference,
         "customer_email": customer_email,
-        "redirect_url": f"{FRONTEND_BASE_URL}/resultado.html",
+        "redirect_url": f"{FRONTEND_BASE_URL}/resultado",
         "name": name,
         "description": description,
         "collect_shipping": False,

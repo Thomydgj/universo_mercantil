@@ -1167,7 +1167,7 @@ function inicializarEventosModalCatalogo() {
       const cantidad = obtenerCantidadModalCatalogo();
       const agregado = agregarItemSiigoAlCarrito(estadoCatalogoModal.productoBase, estadoCatalogoModal.itemSiigo, cantidad);
       if (!agregado) return;
-      window.location.href = "carrito.html";
+      window.location.href = "/carrito";
     });
   }
 
@@ -1598,9 +1598,9 @@ if (producto) {
 
   if (detalleBreadcrumb) {
     const rutaCategoria = categoriaPrincipal
-      ? `productos.html?categoria=${categoriaPrincipal}`
-      : "productos.html";
-    detalleBreadcrumb.innerHTML = `<a href="index.html">Inicio</a> / <a href="productos.html">Productos</a> / <a href="${rutaCategoria}">${categoriaNombre}</a> / ${producto.nombre}`;
+      ? `/productos?categoria=${categoriaPrincipal}`
+      : "/productos";
+    detalleBreadcrumb.innerHTML = `<a href="/">Inicio</a> / <a href="/productos">Productos</a> / <a href="${rutaCategoria}">${categoriaNombre}</a> / ${producto.nombre}`;
   }
 
   document.title = `${producto.nombre} - Universo Mercantil`;

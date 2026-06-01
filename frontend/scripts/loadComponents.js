@@ -8,7 +8,7 @@
 
     const HEADER_TEMPLATE = `
   <div class="header-shell">
-    <a class="logo" href="index.html" aria-label="Ir a inicio">
+      <a class="logo" href="/" aria-label="Ir a inicio">
       <span class="logo-image-slot">
         <img class="logo-image" src="assets/logo.webp" alt="Logo Universo Mercantil" loading="eager" decoding="async">
       </span>
@@ -27,7 +27,7 @@
     <nav id="site-nav" class="nav-bar" aria-label="Navegación principal">
       <ul>
         <li>
-          <a href="index.html">
+          <a href="/">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 11l9-8 9 8"/>
               <path d="M5 10v10h14V10"/>
@@ -36,7 +36,7 @@
           </a>
         </li>
         <li>
-          <a href="categorias.html">
+          <a href="/categorias">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1"/>
               <rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -47,7 +47,7 @@
           </a>
         </li>
         <li>
-          <a href="productos.html">
+          <a href="/productos">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M3 7l9-4 9 4-9 4-9-4z"/>
               <path d="M3 7v10l9 4 9-4V7"/>
@@ -56,7 +56,7 @@
           </a>
         </li>
         <li>
-          <a href="nosotros.html">
+          <a href="/nosotros">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="12" cy="8" r="4"/>
               <path d="M4 21a8 8 0 0 1 16 0"/>
@@ -74,7 +74,7 @@
           </a>
         </li>
         <li class="nav-item-cart">
-          <a href="carrito.html" aria-label="Carrito">
+          <a href="/carrito" aria-label="Carrito">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="9" cy="20" r="1.7"/>
               <circle cx="18" cy="20" r="1.7"/>
@@ -166,11 +166,19 @@
 
   function markActiveNavLink() {
     const canonicalizePath = path => {
-      const normalized = String(path || "/").replace(/\/+$/, "") || "/";
-      if (normalized === "/" || normalized.toLowerCase() === "/index.html") {
-        return "/index.html";
+      let normalized = String(path || "/").trim().replace(/\/+$/, "");
+      if (!normalized) {
+        return "/";
       }
-      return normalized.toLowerCase();
+
+      normalized = normalized.toLowerCase();
+      if (normalized === "/index" || normalized === "/index.html") {
+        return "/";
+      }
+
+      return normalized.endsWith(".html")
+        ? normalized.replace(/\.html$/, "")
+        : normalized;
     };
 
     const currentPath = canonicalizePath(window.location.pathname);
@@ -218,26 +226,6 @@
     phoneDisplayTargets.forEach(node => {
       node.textContent = CONTACT_CONFIG.phoneDisplay;
     });
-  }
-
-  function hideHtmlFromCurrentUrlBar() {
-    const current = new URL(window.location.href);
-    const pathname = current.pathname || "/";
-
-    let cleanPath = pathname;
-    if (/\/index\.html$/i.test(cleanPath)) {
-      cleanPath = cleanPath.replace(/\/index\.html$/i, "/");
-    } else if (/\.html$/i.test(cleanPath)) {
-      cleanPath = cleanPath.replace(/\.html$/i, "");
-    }
-
-    if (cleanPath !== pathname) {
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `${cleanPath}${current.search}${current.hash}`
-      );
-    }
   }
 
   function ensureBackToTopButton() {
@@ -300,7 +288,6 @@
     loadComponent("header", "header.html"),
     loadComponent("footer", "footer.html")
   ]).then(() => {
-    hideHtmlFromCurrentUrlBar();
     initHeaderInteractions();
     markActiveNavLink();
     applyGlobalContactConfig();
