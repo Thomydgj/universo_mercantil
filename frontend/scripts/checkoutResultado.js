@@ -48,6 +48,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const syncStatus = ui.sync_status || payload?.sync?.status || "unknown";
     const detail = ui.detail || payload?.sync?.message || payload?.sync?.reason || "Sin detalle adicional";
 
+    if (syncStatus === "ok") {
+      localStorage.removeItem("carrito");
+    }
+
     setTone(tone);
     syncEl.textContent = `Estado de sincronización: ${syncStatus}`;
     titleEl.textContent = ui.title || "Estamos procesando tu pago";

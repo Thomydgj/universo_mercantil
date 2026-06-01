@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+﻿document.addEventListener("DOMContentLoaded", () => {
   const container = document.getElementById("container-categorias");
   const template = document.getElementById("template-categoria");
   const tipoActualEl = document.getElementById("tipo-actual");

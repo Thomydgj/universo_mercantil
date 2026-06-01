@@ -1,4 +1,4 @@
-import hashlib
+﻿import hashlib
 import hmac
 import html
 import json
@@ -38,7 +38,7 @@ def _split_csv(raw_value: str | None) -> list[str]:
 
 
 def _normalize_origin(value: str) -> str:
-    raw = str(value or "").strip().rstrip("/")
+    raw = str(value or "").strip().rstrip("index.html")
     if not raw:
         return ""
 
@@ -68,7 +68,7 @@ def _expand_allowed_origins(raw_value: str) -> list[str]:
                 normalized.append(candidate)
             continue
 
-        host = entry.strip().strip("/")
+        host = entry.strip().strip("index.html")
         if not host:
             continue
         normalized.extend(filter(None, [_normalize_origin(f"https://{host}"), _normalize_origin(f"http://{host}")]))
@@ -137,7 +137,7 @@ WOMPI_INTEGRITY_SECRET = os.getenv("WOMPI_INTEGRITY_SECRET")
 WOMPI_WEBHOOK_SECRET = os.getenv("WOMPI_WEBHOOK_SECRET") or WOMPI_INTEGRITY_SECRET
 WOMPI_URL = os.getenv("WOMPI_URL", "https://sandbox.wompi.co/v1")
 BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http://localhost:8000"
-FRONTEND_BASE_URL = (os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500").rstrip("/")
+FRONTEND_BASE_URL = (os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500").rstrip("index.html")
 SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "").strip()
 BACKEND_API_KEYS = [
@@ -182,7 +182,7 @@ SUPPORT_EMAIL = (os.getenv("SUPPORT_EMAIL") or SMTP_FROM or "").strip()
 AGREED_SHIPPING_ZONE = "Envío a convenir con el cliente"
 AGREED_SHIPPING_MESSAGE = "Nos contactaremos contigo para convenir el envío según tus necesidades específicas."
 
-SIIGO_API_BASE_URL = (os.getenv("SIIGO_API_BASE_URL") or "https://api.siigo.com").rstrip("/")
+SIIGO_API_BASE_URL = (os.getenv("SIIGO_API_BASE_URL") or "https://api.siigo.com").rstrip("index.html")
 SIIGO_PRODUCTS_PATH = (os.getenv("SIIGO_PRODUCTS_PATH") or "/v1/products").strip()
 SIIGO_USERNAME = (os.getenv("SIIGO_USERNAME") or os.getenv("SIIGO_API_USER") or "").strip()
 SIIGO_ACCESS_KEY = (os.getenv("SIIGO_ACCESS_KEY") or "").strip()
@@ -202,7 +202,7 @@ SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT = (
 SIIGO_SYNC_INVENTORY_ON_APPROVED = (
     os.getenv("SIIGO_SYNC_INVENTORY_ON_APPROVED", "true") or "true"
 ).strip().lower() in {"1", "true", "yes", "y", "on"}
-_siigo_inventory_update_path_default = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/")
+_siigo_inventory_update_path_default = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("index.html")
 SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE = (
     os.getenv("SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE")
     or f"{_siigo_inventory_update_path_default}/{{product_id}}"
@@ -318,7 +318,7 @@ def normalize_public_url(raw_value: str) -> str:
     if value.startswith("//"):
         return f"https:{value}"
 
-    if value.startswith("/"):
+    if value.startswith("index.html"):
         return f"{FRONTEND_BASE_URL}{value}"
 
     return f"{FRONTEND_BASE_URL}/{value}"
@@ -483,8 +483,8 @@ def siigo_build_url(path: str) -> str:
     if raw_path.startswith(("http://", "https://")):
         return raw_path
 
-    if not raw_path.startswith("/"):
-        raw_path = f"/{raw_path}" if raw_path else "/"
+    if not raw_path.startswith("index.html"):
+        raw_path = f"/{raw_path}" if raw_path else "index.html"
 
     return f"{SIIGO_API_BASE_URL}{raw_path}"
 
@@ -945,7 +945,7 @@ def siigo_normalize_product(product: dict) -> dict | None:
         "precio": siigo_extract_price(product),
         "cantidad": siigo_extract_stock(product),
         "categoria": categoria,
-        "categorias": categorias,
+        "categorias.html": categorias,
         "imagen": "",
     }
 
@@ -1191,7 +1191,7 @@ def siigo_build_inventory_update_path(product_id: str) -> str:
     template = (SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE or "").strip()
 
     if not template:
-        base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/")
+        base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("index.html")
         return f"{base_path}/{encoded_id}"
 
     if "{product_id}" in template:
@@ -1273,7 +1273,7 @@ def siigo_fetch_product_by_id(product_id: str) -> tuple[dict | None, str | None]
     if not product_id_raw:
         return None, "missing_product_id"
 
-    base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/")
+    base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("index.html")
     path = f"{base_path}/{quote(product_id_raw, safe='')}"
 
     try:
@@ -1818,7 +1818,7 @@ def build_order_email_context(order: dict, transaction: dict) -> dict:
         product_id = str(item.get("id") or "").strip()
         product_link_raw = (item.get("product_url") or "").strip()
         if not product_link_raw and product_id:
-            product_link_raw = f"/detalles.html?id={product_id}"
+            product_link_raw = f"detalles.html?id={product_id}"
 
         items.append({
             "line": index,

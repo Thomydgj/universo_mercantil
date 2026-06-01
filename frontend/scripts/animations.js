@@ -111,6 +111,55 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function attachSwipeNavigation(element, onSwipeLeft, onSwipeRight) {
+    if (!element || typeof onSwipeLeft !== 'function' || typeof onSwipeRight !== 'function') {
+        return;
+    }
+
+    const SWIPE_MIN_DISTANCE_PX = 45;
+    const SWIPE_MAX_VERTICAL_DRIFT_PX = 90;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let trackingTouch = false;
+
+    element.style.touchAction = 'pan-y';
+
+    element.addEventListener('touchstart', function(event) {
+        if (!event.touches || event.touches.length !== 1) {
+            trackingTouch = false;
+            return;
+        }
+
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        trackingTouch = true;
+    }, { passive: true });
+
+    element.addEventListener('touchend', function(event) {
+        if (!trackingTouch || !event.changedTouches || !event.changedTouches.length) {
+            trackingTouch = false;
+            return;
+        }
+
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - touchStartX;
+        const deltaY = touch.clientY - touchStartY;
+        trackingTouch = false;
+
+        if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE_PX) return;
+        if (Math.abs(deltaY) > SWIPE_MAX_VERTICAL_DRIFT_PX) return;
+        if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+        if (deltaX < 0) {
+            onSwipeLeft();
+            return;
+        }
+
+        onSwipeRight();
+    }, { passive: true });
+}
+
 function initHeroSlider() {
     const slider = document.querySelector('[data-hero-slider]');
     if (!slider) return;
@@ -188,6 +237,18 @@ function initHeroSlider() {
             restartAutoplay();
         });
     });
+
+    attachSwipeNavigation(
+        slider,
+        function() {
+            goNext();
+            restartAutoplay();
+        },
+        function() {
+            goPrev();
+            restartAutoplay();
+        }
+    );
 
     slider.addEventListener('mouseenter', stopAutoplay);
     slider.addEventListener('mouseleave', startAutoplay);
@@ -288,6 +349,18 @@ function initAlliesSlider() {
         });
     });
 
+    attachSwipeNavigation(
+        slider,
+        function() {
+            goNext();
+            restartAutoplay();
+        },
+        function() {
+            goPrev();
+            restartAutoplay();
+        }
+    );
+
     slider.addEventListener('mouseenter', stopAutoplay);
     slider.addEventListener('mouseleave', startAutoplay);
     slider.addEventListener('focusin', stopAutoplay);
@@ -387,6 +460,18 @@ function initTrustSlider() {
                 restartAutoplay();
             });
         });
+
+        attachSwipeNavigation(
+            slider,
+            function() {
+                goNext();
+                restartAutoplay();
+            },
+            function() {
+                goPrev();
+                restartAutoplay();
+            }
+        );
 
         slider.addEventListener('mouseenter', stopAutoplay);
         slider.addEventListener('mouseleave', startAutoplay);

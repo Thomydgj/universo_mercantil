@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+﻿document.addEventListener("DOMContentLoaded", async () => {
   if (typeof cargarManifestImagenesNuevas === "function") {
     await cargarManifestImagenesNuevas();
   }

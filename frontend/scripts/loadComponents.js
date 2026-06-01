@@ -1,4 +1,4 @@
-    const RUNTIME_CONFIG = window.UNIVERSO_CONFIG || {};
+﻿    const RUNTIME_CONFIG = window.UNIVERSO_CONFIG || {};
     const CONTACT_CONFIG = {
     whatsapp: RUNTIME_CONFIG.whatsapp || "573001234567",
     whatsappMessage: RUNTIME_CONFIG.whatsappMessage || "Hola, quiero cotizar empaques para mi negocio.",
@@ -165,17 +165,31 @@
   }
 
   function markActiveNavLink() {
-    const currentPath = window.location.pathname || "";
+    const canonicalizePath = path => {
+      const normalized = String(path || "/").replace(/\/+$/, "") || "/";
+      if (normalized === "/" || normalized.toLowerCase() === "/index.html") {
+        return "/index.html";
+      }
+      return normalized.toLowerCase();
+    };
+
+    const currentPath = canonicalizePath(window.location.pathname);
     const links = document.querySelectorAll(".nav-bar a");
 
     links.forEach(link => {
       const href = link.getAttribute("href") || "";
       if (href.startsWith("#")) return;
 
-      const normalizedHref = href.replace(/\/$/, "");
-      const normalizedPath = currentPath.replace(/\/$/, "");
+      let linkPath = "";
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        linkPath = canonicalizePath(url.pathname);
+      } catch {
+        return;
+      }
 
-      if (normalizedHref && normalizedPath.endsWith(normalizedHref)) {
+      if (linkPath === currentPath) {
         link.classList.add("active");
       }
     });
@@ -204,6 +218,26 @@
     phoneDisplayTargets.forEach(node => {
       node.textContent = CONTACT_CONFIG.phoneDisplay;
     });
+  }
+
+  function hideHtmlFromCurrentUrlBar() {
+    const current = new URL(window.location.href);
+    const pathname = current.pathname || "/";
+
+    let cleanPath = pathname;
+    if (/\/index\.html$/i.test(cleanPath)) {
+      cleanPath = cleanPath.replace(/\/index\.html$/i, "/");
+    } else if (/\.html$/i.test(cleanPath)) {
+      cleanPath = cleanPath.replace(/\.html$/i, "");
+    }
+
+    if (cleanPath !== pathname) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${cleanPath}${current.search}${current.hash}`
+      );
+    }
   }
 
   function ensureBackToTopButton() {
@@ -266,6 +300,7 @@
     loadComponent("header", "header.html"),
     loadComponent("footer", "footer.html")
   ]).then(() => {
+    hideHtmlFromCurrentUrlBar();
     initHeaderInteractions();
     markActiveNavLink();
     applyGlobalContactConfig();

@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+﻿document.addEventListener("DOMContentLoaded", async () => {
 const RUTA_MANIFEST_IMAGENES_SIIGO = "scripts/siigo_imagenes.json";
 const RUTA_MANIFEST_DESCRIPCIONES_SIIGO = "scripts/siigo_descripciones.json";
 let manifestImagenesSiigo = {};
@@ -1632,6 +1632,59 @@ if (producto) {
   let slides = [];
   let currentIndex = 0;
 
+  const habilitarSwipeCarrusel = () => {
+    if (!track) return;
+
+    const SWIPE_MIN_DISTANCE_PX = 45;
+    const SWIPE_MAX_VERTICAL_DRIFT_PX = 90;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let trackingTouch = false;
+
+    track.style.touchAction = "pan-y";
+
+    track.addEventListener("touchstart", event => {
+      if (!event.touches || event.touches.length !== 1) {
+        trackingTouch = false;
+        return;
+      }
+
+      const touch = event.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      trackingTouch = true;
+    }, { passive: true });
+
+    track.addEventListener("touchend", event => {
+      if (!trackingTouch || !event.changedTouches || !event.changedTouches.length) {
+        trackingTouch = false;
+        return;
+      }
+
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+      trackingTouch = false;
+
+      if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE_PX) return;
+      if (Math.abs(deltaY) > SWIPE_MAX_VERTICAL_DRIFT_PX) return;
+      if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+      if (deltaX < 0) {
+        if (currentIndex < slides.length - 1) {
+          currentIndex++;
+          updateCarousel();
+        }
+        return;
+      }
+
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateCarousel();
+      }
+    }, { passive: true });
+  };
+
   function obtenerImagenesActivas() {
     if (categoriaValida && typeof obtenerImagenesProductoPorCategoria === "function") {
       const imagenesPorCategoria = obtenerImagenesProductoPorCategoria(producto, categoriaContexto);
@@ -1717,6 +1770,7 @@ if (producto) {
   }
 
   renderizarCarousel(obtenerImagenesActivas(), producto.nombre);
+  habilitarSwipeCarrusel();
 
   container.appendChild(card);
   await cargarCatalogoRealSiigo(producto);

@@ -109,7 +109,8 @@ En Wompi, apunta el webhook a:
 1. En Plesk, abre el dominio principal y entra a `httpdocs`.
 2. Sube el contenido de la carpeta `frontend/` (no la carpeta, sino su contenido).
 3. Verifica que `index.html` quede en `httpdocs/index.html`.
-4. Edita `httpdocs/scripts/runtime-config.js` con valores de producción:
+4. Conserva el archivo `httpdocs/.htaccess` para habilitar URLs limpias sin `.html` (por ejemplo `/productos`, `/carrito`, `/detalles`).
+5. Edita `httpdocs/scripts/runtime-config.js` con valores de producción:
 
 ```js
 window.UNIVERSO_CONFIG = {
@@ -163,9 +164,10 @@ python migrate_json_to_db.py
 
 1. Abre `https://www.tudominio.com`.
 2. Valida navegación entre páginas y carga de imágenes.
-3. Ejecuta un checkout de prueba (sandbox) y confirma que redirige a `resultado.html`.
-4. Verifica que `GET /health` responda en el subdominio API.
-5. Revisa logs de webhook y correo de facturación.
+3. Confirma que las rutas responden sin extensión (`/productos`, `/carrito`, `/detalles`) y que las URLs con `.html` redirigen a la versión limpia.
+4. Ejecuta un checkout de prueba (sandbox) y confirma que redirige correctamente a `resultado`.
+5. Verifica que `GET /health` responda en el subdominio API.
+6. Revisa logs de webhook y correo de facturación.
 
 ## 5) Actualización de versiones
 
