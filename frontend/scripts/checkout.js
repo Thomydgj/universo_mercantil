@@ -159,10 +159,15 @@ document.addEventListener("DOMContentLoaded", () => {
           `Hola, acabo de crear el pedido ${orderRef}. Pago pendiente. Cliente: ${nombre || "N/A"}. Total: $${total.toLocaleString("es-CO")}. Quiero coordinar el pago directo.`
         );
 
-        notify(`Pedido ${orderRef} creado con estado pendiente. Te redirigimos a WhatsApp.`, "success");
+        notify(`Pedido ${orderRef} creado con estado pendiente. Te llevamos al resultado para continuar.`, "success");
         setTimeout(() => {
           window.open(`https://wa.me/${SALES_WHATSAPP_NUMBER}?text=${mensaje}`, "_blank", "noopener");
-        }, 900);
+        }, 350);
+        const resultParams = new URLSearchParams({
+          reference: orderRef,
+          direct: "1"
+        });
+        window.location.assign(`/resultado?${resultParams.toString()}`);
         return;
       }
 

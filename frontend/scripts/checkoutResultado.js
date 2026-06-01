@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const searchParams = new URLSearchParams(window.location.search);
   const txFromQuery = searchParams.get("id") || searchParams.get("transaction_id") || searchParams.get("transaction-id") || "";
+  const referenceFromQuery = searchParams.get("reference") || "";
 
   const buildHeaders = () => {
     const headers = {};
@@ -31,12 +32,16 @@ document.addEventListener("DOMContentLoaded", () => {
     card.classList.add(`checkout-result--${safeTone}`);
   };
 
-  const setWhatsApp = txId => {
+  const setWhatsApp = ({ txId, reference, syncStatus }) => {
     if (!whatsappEl || !SALES_WHATSAPP_NUMBER) {
       return;
     }
-    const referenceText = txId ? ` Transacción: ${txId}.` : "";
-    const message = encodeURIComponent(`Hola, acabo de finalizar el proceso de pago.${referenceText} Quiero confirmar mi pedido.`);
+    const refText = reference ? ` Pedido: ${reference}.` : "";
+    const txText = txId ? ` Transacción: ${txId}.` : "";
+    const pendingText = syncStatus === "pending_direct"
+      ? " Quiero coordinar el pago directo de inmediato."
+      : " Quiero confirmar mi pedido.";
+    const message = encodeURIComponent(`Hola, acabo de finalizar el proceso de pago.${refText}${txText}${pendingText}`);
     whatsappEl.href = `https://wa.me/${SALES_WHATSAPP_NUMBER}?text=${message}`;
     whatsappEl.hidden = false;
   };
@@ -44,11 +49,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const applyPayload = payload => {
     const ui = payload?.ui || {};
     const tone = ui.tone || "info";
-    const txId = payload?.transaction_id || txFromQuery || "N/A";
+    const reference = payload?.reference || referenceFromQuery || "";
+    const txId = payload?.transaction_id || txFromQuery || "";
+    const displayId = txId || reference || "N/A";
     const syncStatus = ui.sync_status || payload?.sync?.status || "unknown";
     const detail = ui.detail || payload?.sync?.message || payload?.sync?.reason || "Sin detalle adicional";
 
-    if (syncStatus === "ok") {
+    if (syncStatus === "ok" || syncStatus === "pending_direct") {
       localStorage.removeItem("carrito");
     }
 
@@ -56,10 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
     syncEl.textContent = `Estado de sincronización: ${syncStatus}`;
     titleEl.textContent = ui.title || "Estamos procesando tu pago";
     subtitleEl.textContent = ui.subtitle || "Tu proceso de checkout fue recibido. Te sugerimos verificar el estado de tu pedido en unos segundos.";
-    txEl.textContent = txId;
+    txEl.textContent = displayId;
     detailEl.textContent = detail;
 
-    setWhatsApp(txId === "N/A" ? "" : txId);
+    setWhatsApp({ txId, reference, syncStatus });
   };
 
   const setErrorState = message => {

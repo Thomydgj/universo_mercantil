@@ -77,6 +77,9 @@ def init_database() -> None:
                 email_notified BOOLEAN DEFAULT FALSE,
                 email_notified_at TEXT,
                 email_error TEXT,
+                direct_payment_email_notified BOOLEAN DEFAULT FALSE,
+                direct_payment_email_notified_at TEXT,
+                direct_payment_email_error TEXT,
                 inventory_synced BOOLEAN DEFAULT FALSE,
                 inventory_synced_at TEXT,
                 inventory_sync_error TEXT,
@@ -90,6 +93,9 @@ def init_database() -> None:
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_synced_at TEXT"))
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_sync_error TEXT"))
         conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_sync_report_json TEXT"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS direct_payment_email_notified BOOLEAN DEFAULT FALSE"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS direct_payment_email_notified_at TEXT"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS direct_payment_email_error TEXT"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_payment_link_id ON orders (payment_link_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_orders_transaction_id ON orders (transaction_id)"))
 
@@ -160,6 +166,9 @@ def _serialize_order(order: dict[str, Any]) -> dict[str, Any]:
         "email_notified": bool(order.get("email_notified")),
         "email_notified_at": order.get("email_notified_at"),
         "email_error": order.get("email_error"),
+        "direct_payment_email_notified": bool(order.get("direct_payment_email_notified")),
+        "direct_payment_email_notified_at": order.get("direct_payment_email_notified_at"),
+        "direct_payment_email_error": order.get("direct_payment_email_error"),
         "inventory_synced": bool(order.get("inventory_synced")),
         "inventory_synced_at": order.get("inventory_synced_at"),
         "inventory_sync_error": order.get("inventory_sync_error"),
@@ -191,6 +200,7 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
             transaction_id, transaction_status, wompi_reference, last_sync_source,
             webhook_received_at, redirect_sync_at, status,
             email_notified, email_notified_at, email_error,
+            direct_payment_email_notified, direct_payment_email_notified_at, direct_payment_email_error,
             inventory_synced, inventory_synced_at, inventory_sync_error, inventory_sync_report_json,
             created_at, updated_at
         ) VALUES (
@@ -200,6 +210,7 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
             :transaction_id, :transaction_status, :wompi_reference, :last_sync_source,
             :webhook_received_at, :redirect_sync_at, :status,
             :email_notified, :email_notified_at, :email_error,
+            :direct_payment_email_notified, :direct_payment_email_notified_at, :direct_payment_email_error,
             :inventory_synced, :inventory_synced_at, :inventory_sync_error, :inventory_sync_report_json,
             :created_at, :updated_at
         )
@@ -229,6 +240,9 @@ def db_upsert_order(reference: str, patch: dict[str, Any]) -> dict[str, Any]:
             email_notified = EXCLUDED.email_notified,
             email_notified_at = EXCLUDED.email_notified_at,
             email_error = EXCLUDED.email_error,
+            direct_payment_email_notified = EXCLUDED.direct_payment_email_notified,
+            direct_payment_email_notified_at = EXCLUDED.direct_payment_email_notified_at,
+            direct_payment_email_error = EXCLUDED.direct_payment_email_error,
             inventory_synced = EXCLUDED.inventory_synced,
             inventory_synced_at = EXCLUDED.inventory_synced_at,
             inventory_sync_error = EXCLUDED.inventory_sync_error,

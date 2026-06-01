@@ -1613,6 +1613,10 @@ def build_checkout_result_ui(sync: dict | None) -> dict:
         tone = "success"
         title = "Pago confirmado"
         subtitle = "Tu pago fue validado correctamente y tu pedido está en proceso."
+    elif sync_status == "pending_direct":
+        tone = "warning"
+        title = "Pedido creado con pago pendiente"
+        subtitle = "Tu pedido fue registrado. Te contactaremos para coordinar el pago directo."
     elif sync_status == "error":
         tone = "error"
         title = "No se pudo confirmar el pago"
@@ -2004,6 +2008,10 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
     reference = context["reference"]
     currency = context["currency"]
     status = context["tx_status"]
+    is_pending = status in {"PENDING", "PENDING_PAYMENT", "PENDING_DIRECT"}
+    title_prefix = "Nueva compra pendiente" if is_pending else "Nueva compra aprobada"
+    subtitle_text = f"Estado del pedido: {status}"
+    subject_prefix = "Compra pendiente" if is_pending else "Compra aprobada"
 
     summary_rows = [
         ("Referencia", reference),
@@ -2053,13 +2061,13 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
     )
 
     html_body = wrap_email_html(
-        title=f"Nueva compra aprobada - {reference}",
-        subtitle=f"Estado del pago: {status}",
+        title=f"{title_prefix} - {reference}",
+        subtitle=subtitle_text,
         content_html=content_html,
     )
 
     text_lines = [
-        f"Nueva compra aprobada ({status}).",
+        f"{title_prefix} ({status}).",
         "",
         f"Referencia: {reference}",
         f"Transacción Wompi: {context['tx_id']}",
@@ -2092,7 +2100,7 @@ def build_internal_email_content(context: dict) -> tuple[str, str, str]:
             if item.get("product_url"):
                 text_lines.append(f"  URL: {item['product_url']}")
 
-    subject = f"[Facturación] Compra aprobada {reference}"
+    subject = f"[Facturación] {subject_prefix} {reference}"
     return subject, "\n".join(text_lines), html_body
 
 
@@ -2100,6 +2108,28 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
     reference = context["reference"]
     currency = context["currency"]
     first_name = (context["buyer"].get("nombre") or "Cliente").strip() or "Cliente"
+    status = context["tx_status"]
+    is_pending = status in {"PENDING", "PENDING_PAYMENT", "PENDING_DIRECT"}
+    intro_text = (
+        "tu pedido fue registrado y está pendiente de pago. Un asesor te contactará para coordinar el pago directo."
+        if is_pending
+        else "tu pago fue aprobado correctamente. Gracias por confiar en nosotros."
+    )
+    title_text = (
+        f"Pedido recibido - Pago pendiente ({reference})"
+        if is_pending
+        else f"Compra aprobada - Pedido {reference}"
+    )
+    subtitle_text = (
+        "Tu pedido fue registrado y está pendiente de confirmación de pago."
+        if is_pending
+        else "Tu compra fue confirmada y ya está en proceso."
+    )
+    subject_text = (
+        f"[{COMPANY_NAME}] Pedido recibido (pago pendiente) - {reference}"
+        if is_pending
+        else f"[{COMPANY_NAME}] Compra aprobada - Pedido {reference}"
+    )
 
     summary_rows = [
         ("Referencia de pedido", reference),
@@ -2126,7 +2156,7 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
 
     content_html = (
         f"<p style='margin:0 0 14px 0;color:#1a2b3d;font-size:14px;line-height:1.6;'>Hola <strong>{escape_html(first_name)}</strong>, "
-        "tu pago fue aprobado correctamente. Gracias por confiar en nosotros.</p>"
+        f"{escape_html(intro_text)}</p>"
         + "<h2 style='margin:0 0 10px 0;color:#0b4d93;font-size:17px;'>Resumen de tu pedido</h2>"
         + build_html_kv_table(summary_rows)
         + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Entrega</h2>"
@@ -2136,14 +2166,16 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
     )
 
     html_body = wrap_email_html(
-        title=f"Compra aprobada - Pedido {reference}",
-        subtitle="Tu compra fue confirmada y ya está en proceso.",
+        title=title_text,
+        subtitle=subtitle_text,
         content_html=content_html,
     )
 
     text_lines = [
         f"Hola {first_name},",
         "",
+        "Tu pedido fue registrado y está pendiente de pago. Un asesor te contactará para coordinar el pago directo."
+        if is_pending else
         "Tu pago fue aprobado correctamente.",
         f"Referencia del pedido: {reference}",
         f"Transacción: {context['tx_id']}",
@@ -2172,7 +2204,7 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
         f"{COMPANY_NAME}",
     ])
 
-    subject = f"[{COMPANY_NAME}] Compra aprobada - Pedido {reference}"
+    subject = subject_text
     return subject, "\n".join(text_lines), html_body
 
 
@@ -2427,7 +2459,7 @@ def enviar_correos_pago_directo_pendiente(order: dict) -> tuple[bool, str]:
     if not validate_email(customer_email):
         return False, "No fue posible determinar un email válido para el cliente"
 
-    internal_subject, internal_text, internal_html = build_internal_direct_payment_email_content(context)
+    internal_subject, internal_text, internal_html = build_internal_email_content(context)
     internal_sent, internal_detail = send_email_message(
         FACTURACION_EMAIL_TO,
         internal_subject,
@@ -2438,7 +2470,7 @@ def enviar_correos_pago_directo_pendiente(order: dict) -> tuple[bool, str]:
     if not internal_sent:
         return False, f"correo interno: {internal_detail}"
 
-    customer_subject, customer_text, customer_html = build_customer_direct_payment_email_content(context)
+    customer_subject, customer_text, customer_html = build_customer_email_content(context)
     customer_sent, customer_detail = send_email_message(
         customer_email,
         customer_subject,
@@ -2794,14 +2826,35 @@ def resultado():
 
     params = request.args.to_dict()
     tx_id = params.get("id") or params.get("transaction_id") or params.get("transaction-id")
+    reference = (params.get("reference") or "").strip()
     reconcile = None
+
     if tx_id:
         reconcile, _ = procesar_transaccion_confirmada(tx_id, source="redirect")
+    elif reference:
+        order = get_order(reference)
+        if isinstance(order, dict):
+            payment_method = str(order.get("payment_method") or "").strip().lower()
+            order_status = str(order.get("status") or "").strip().lower()
+            if payment_method == "direct" and order_status in {"pending_payment", "pending", "created"}:
+                email_sent = bool(order.get("direct_payment_email_notified"))
+                email_error = str(order.get("direct_payment_email_error") or "").strip()
+                reconcile = {
+                    "status": "pending_direct",
+                    "reason": "direct_payment_pending",
+                    "reference": reference,
+                    "message": (
+                        "Pedido registrado y correo enviado. Te contactaremos para coordinar el pago directo."
+                        if email_sent else
+                        (f"Pedido registrado. No se pudo enviar correo automático: {email_error}" if email_error else "Pedido registrado. Te contactaremos para coordinar el pago directo.")
+                    ),
+                }
 
     return jsonify({
         "ok": True,
         "message": "Resultado de checkout procesado",
-        "transaction_id": tx_id,
+        "transaction_id": tx_id or ("PAGO_DIRECTO" if (reconcile or {}).get("status") == "pending_direct" else None),
+        "reference": reference or (reconcile or {}).get("reference"),
         "sync": reconcile,
         "ui": build_checkout_result_ui(reconcile)
     }), 200
