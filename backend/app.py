@@ -188,6 +188,9 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER or "no-reply@universomercantil.com")
+SMTP_SECURITY = (os.getenv("SMTP_SECURITY", "starttls") or "starttls").strip().lower()
+if SMTP_SECURITY not in {"starttls", "ssl", "none"}:
+    SMTP_SECURITY = "starttls"
 FACTURACION_EMAIL_TO = os.getenv("FACTURACION_EMAIL_TO")
 FACTURACION_EMAIL_CC = os.getenv("FACTURACION_EMAIL_CC", "")
 COMPANY_NAME = os.getenv("COMPANY_NAME", "Universo Mercantil")
@@ -2406,8 +2409,12 @@ def send_email_message(to_email: str, subject: str, text_body: str, html_body: s
     msg.add_alternative(html_body, subtype="html")
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
-            smtp.starttls()
+        smtp_client = smtplib.SMTP_SSL if SMTP_SECURITY == "ssl" else smtplib.SMTP
+        with smtp_client(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
+            if SMTP_SECURITY == "starttls":
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.ehlo()
             smtp.login(SMTP_USER, SMTP_PASSWORD)
             smtp.send_message(msg)
         return True, "Correo enviado"
