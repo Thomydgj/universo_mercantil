@@ -2176,6 +2176,183 @@ def build_customer_email_content(context: dict) -> tuple[str, str, str]:
     return subject, "\n".join(text_lines), html_body
 
 
+def build_internal_direct_payment_email_content(context: dict) -> tuple[str, str, str]:
+    reference = context["reference"]
+    currency = context["currency"]
+
+    summary_rows = [
+        ("Referencia", reference),
+        ("Estado", "Pendiente por pago directo"),
+        ("Método de pago", context["payment_method"]),
+        ("Tipo de entrega", "Recoger en tienda" if context["delivery_type"] == "pickup" else "Enviar a domicilio"),
+        ("Modalidad de envío", context["shipping_zone"]),
+        ("Condición del envío", "Sin costo (recoger en tienda)" if context["delivery_type"] == "pickup" else "A convenir con el cliente (no incluido en el pago online)"),
+        ("Subtotal", format_currency(context["subtotal"], currency)),
+        ("Total del pedido", format_currency(context["total"], currency)),
+    ]
+
+    buyer = context["buyer"]
+    buyer_rows = [
+        ("Nombre", context["buyer_full_name"]),
+        ("Documento", buyer.get("numero_documento") or "N/A"),
+        ("Teléfono", buyer.get("telefono") or "N/A"),
+        ("Email", context["buyer_email"] or "N/A"),
+    ]
+
+    if context["delivery_type"] == "pickup":
+        delivery_rows = [
+            ("Tipo", "Entrega en tienda"),
+            ("Mensaje", context["pickup_message"]),
+        ]
+    else:
+        shipping = context["shipping"]
+        delivery_rows = [
+            ("Tipo", "Envío a domicilio"),
+            ("Condición", "El envío se coordina por llamada"),
+            ("Mensaje", context["shipping_message"]),
+            ("Dirección", context["shipping_summary"]),
+            ("Departamento", shipping.get("departamento") or "N/A"),
+            ("Ciudad", shipping.get("ciudad") or "N/A"),
+        ]
+
+    content_html = (
+        "<p style='margin:0 0 14px 0;color:#1a2b3d;font-size:14px;line-height:1.6;'>"
+        "Se registró un pedido con <strong>pago directo pendiente</strong>. "
+        "El equipo comercial debe contactar al cliente para coordinar el pago y confirmar la orden."
+        "</p>"
+        + "<h2 style='margin:0 0 10px 0;color:#0b4d93;font-size:17px;'>Resumen del pedido</h2>"
+        + build_html_kv_table(summary_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Datos del comprador</h2>"
+        + build_html_kv_table(buyer_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Entrega</h2>"
+        + build_html_kv_table(delivery_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Productos solicitados</h2>"
+        + build_items_html(context["items"], currency, include_product_links=True)
+    )
+
+    html_body = wrap_email_html(
+        title=f"Pedido pendiente por pago directo - {reference}",
+        subtitle="Requiere gestión comercial para confirmar pago.",
+        content_html=content_html,
+    )
+
+    text_lines = [
+        "Nuevo pedido pendiente por pago directo.",
+        "",
+        f"Referencia: {reference}",
+        f"Método de pago: {context['payment_method']}",
+        f"Tipo de entrega: {'Recoger en tienda' if context['delivery_type'] == 'pickup' else 'Enviar a domicilio'}",
+        f"Modalidad de envío: {context['shipping_zone']}",
+        f"Total del pedido: {format_currency(context['total'], currency)}",
+        "",
+        "Datos del comprador:",
+        f"- Nombre: {context['buyer_full_name']}",
+        f"- Documento: {buyer.get('numero_documento') or 'N/A'}",
+        f"- Teléfono: {buyer.get('telefono') or 'N/A'}",
+        f"- Email: {context['buyer_email'] or 'N/A'}",
+        "",
+        "Productos:",
+    ]
+
+    if not context["items"]:
+        text_lines.append("- Sin detalle de productos")
+    else:
+        for item in context["items"]:
+            line = (
+                f"- {item['nombre']} | Cantidad: {item['cantidad']} | "
+                f"Precio: {format_currency(item['precio'], currency)} | "
+                f"Subtotal: {format_currency(item['subtotal'], currency)}"
+            )
+            text_lines.append(line)
+            if item.get("product_url"):
+                text_lines.append(f"  URL: {item['product_url']}")
+
+    subject = f"[Facturación] Pedido pendiente por pago directo {reference}"
+    return subject, "\n".join(text_lines), html_body
+
+
+def build_customer_direct_payment_email_content(context: dict) -> tuple[str, str, str]:
+    reference = context["reference"]
+    currency = context["currency"]
+    first_name = (context["buyer"].get("nombre") or "Cliente").strip() or "Cliente"
+
+    summary_rows = [
+        ("Referencia de pedido", reference),
+        ("Estado", "Pendiente por pago directo"),
+        ("Método de pago", context["payment_method"]),
+        ("Modalidad de envío", context["shipping_zone"]),
+        ("Condición del envío", "Sin costo (recoger en tienda)" if context["delivery_type"] == "pickup" else "A convenir con el cliente (no incluido en este pago)"),
+        ("Subtotal", format_currency(context["subtotal"], currency)),
+        ("Total del pedido", format_currency(context["total"], currency)),
+    ]
+
+    if context["delivery_type"] == "pickup":
+        delivery_rows = [
+            ("Tipo de entrega", "Recoger en tienda"),
+            ("Mensaje", context["pickup_message"]),
+        ]
+    else:
+        delivery_rows = [
+            ("Tipo de entrega", "Envío a domicilio"),
+            ("Condición", "El envío se coordina por llamada"),
+            ("Mensaje", context["shipping_message"]),
+            ("Dirección", context["shipping_summary"]),
+        ]
+
+    content_html = (
+        f"<p style='margin:0 0 14px 0;color:#1a2b3d;font-size:14px;line-height:1.6;'>Hola <strong>{escape_html(first_name)}</strong>, "
+        "recibimos tu pedido con modalidad de <strong>pago directo</strong>. "
+        "Un asesor de nuestro equipo se contactará contigo para coordinar y confirmar el pago.</p>"
+        + "<h2 style='margin:0 0 10px 0;color:#0b4d93;font-size:17px;'>Resumen de tu pedido</h2>"
+        + build_html_kv_table(summary_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Entrega</h2>"
+        + build_html_kv_table(delivery_rows)
+        + "<h2 style='margin:18px 0 10px 0;color:#0b4d93;font-size:17px;'>Productos solicitados</h2>"
+        + build_items_html(context["items"], currency, include_product_links=False)
+    )
+
+    html_body = wrap_email_html(
+        title=f"Pedido recibido - Pago directo ({reference})",
+        subtitle="Tu pedido fue registrado y está pendiente de confirmación de pago.",
+        content_html=content_html,
+    )
+
+    text_lines = [
+        f"Hola {first_name},",
+        "",
+        "Recibimos tu pedido con pago directo.",
+        "Un asesor se pondrá en contacto contigo para coordinar y confirmar el pago.",
+        "",
+        f"Referencia del pedido: {reference}",
+        f"Método de pago: {context['payment_method']}",
+        f"Modalidad de envío: {context['shipping_zone']}",
+        f"Condición del envío: {'Sin costo (recoger en tienda)' if context['delivery_type'] == 'pickup' else 'A convenir con el cliente (no incluido en este pago)'}",
+        f"Subtotal: {format_currency(context['subtotal'], currency)}",
+        f"Total del pedido: {format_currency(context['total'], currency)}",
+        "",
+        "Productos:",
+    ]
+
+    if not context["items"]:
+        text_lines.append("- Sin detalle de productos")
+    else:
+        for item in context["items"]:
+            text_lines.append(
+                f"- {item['nombre']} | Cantidad: {item['cantidad']} | "
+                f"Precio: {format_currency(item['precio'], currency)} | "
+                f"Subtotal: {format_currency(item['subtotal'], currency)}"
+            )
+
+    text_lines.extend([
+        "",
+        "Si tienes dudas, responde a este correo y te ayudamos.",
+        f"{COMPANY_NAME}",
+    ])
+
+    subject = f"[{COMPANY_NAME}] Pedido recibido (pago directo) - {reference}"
+    return subject, "\n".join(text_lines), html_body
+
+
 def send_email_message(to_email: str, subject: str, text_body: str, html_body: str, cc_email: str = "") -> tuple[bool, str]:
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASSWORD:
         return False, "Configura SMTP_HOST, SMTP_USER y SMTP_PASSWORD"
@@ -2238,6 +2415,40 @@ def enviar_correos_compra_aprobada(order: dict, transaction: dict) -> tuple[bool
         return False, f"correo cliente: {customer_detail}"
 
     return True, "Correos interno y cliente enviados"
+
+
+def enviar_correos_pago_directo_pendiente(order: dict) -> tuple[bool, str]:
+    if not FACTURACION_EMAIL_TO:
+        return False, "FACTURACION_EMAIL_TO no esta configurado"
+
+    context = build_order_email_context(order, {"id": "PAGO_DIRECTO", "status": "PENDING"})
+
+    customer_email = (context.get("buyer_email") or "").strip()
+    if not validate_email(customer_email):
+        return False, "No fue posible determinar un email válido para el cliente"
+
+    internal_subject, internal_text, internal_html = build_internal_direct_payment_email_content(context)
+    internal_sent, internal_detail = send_email_message(
+        FACTURACION_EMAIL_TO,
+        internal_subject,
+        internal_text,
+        internal_html,
+        FACTURACION_EMAIL_CC,
+    )
+    if not internal_sent:
+        return False, f"correo interno: {internal_detail}"
+
+    customer_subject, customer_text, customer_html = build_customer_direct_payment_email_content(context)
+    customer_sent, customer_detail = send_email_message(
+        customer_email,
+        customer_subject,
+        customer_text,
+        customer_html,
+    )
+    if not customer_sent:
+        return False, f"correo cliente: {customer_detail}"
+
+    return True, "Correos de pago directo enviados"
 
 
 def generar_firma(reference, amount_in_cents, currency, integrity_secret):
@@ -2533,10 +2744,41 @@ def create_order_for_direct_payment():
         "email_notified": False,
     })
 
+    order = get_order(reference) or {
+        "reference": reference,
+        "amount_in_cents": amount_in_cents,
+        "currency": currency,
+        "customer_email": customer_email,
+        "buyer": buyer,
+        "items": items,
+        "payment_method": payment_method,
+        "delivery_type": delivery_type,
+        "shipping_address": shipping_address,
+        "shipping_zone": shipping_zone,
+        "shipping_message": shipping_message,
+        "subtotal": normalized_payload["subtotal"],
+        "pickup_message": normalized_payload["pickup_message"],
+        "status": "pending_payment",
+    }
+
+    direct_email_sent, direct_email_detail = enviar_correos_pago_directo_pendiente(order)
+    upsert_order(reference, {
+        "direct_payment_email_notified": bool(direct_email_sent),
+        "direct_payment_email_notified_at": now_iso() if direct_email_sent else None,
+        "direct_payment_email_error": None if direct_email_sent else direct_email_detail,
+    })
+
+    if not direct_email_sent:
+        logger.error("Error enviando correos de pago directo (%s): %s", reference, direct_email_detail)
+
     response_payload = {
         "ok": True,
         "reference": reference,
-        "status": "pending_payment"
+        "status": "pending_payment",
+        "email_notification": {
+            "sent": bool(direct_email_sent),
+            "detail": direct_email_detail,
+        },
     }
     store_idempotency_response(idempotency_context, response_payload, 201)
     return jsonify(response_payload), 201
