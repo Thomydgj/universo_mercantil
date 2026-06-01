@@ -37,8 +37,21 @@ def _split_csv(raw_value: str | None) -> list[str]:
     return [entry.strip() for entry in str(raw_value or "").split(",") if entry.strip()]
 
 
+def _strip_index_html_suffix(value: str | None) -> str:
+    raw = str(value or "").strip()
+    lowered = raw.lower()
+
+    if lowered.endswith("/index.html"):
+        return raw[:-len("/index.html")]
+
+    if lowered == "index.html":
+        return ""
+
+    return raw
+
+
 def _normalize_origin(value: str) -> str:
-    raw = str(value or "").strip().rstrip("index.html")
+    raw = _strip_index_html_suffix(value)
     if not raw:
         return ""
 
@@ -68,7 +81,7 @@ def _expand_allowed_origins(raw_value: str) -> list[str]:
                 normalized.append(candidate)
             continue
 
-        host = entry.strip().strip("index.html")
+        host = _strip_index_html_suffix(entry)
         if not host:
             continue
         normalized.extend(filter(None, [_normalize_origin(f"https://{host}"), _normalize_origin(f"http://{host}")]))
@@ -137,7 +150,8 @@ WOMPI_INTEGRITY_SECRET = os.getenv("WOMPI_INTEGRITY_SECRET")
 WOMPI_WEBHOOK_SECRET = os.getenv("WOMPI_WEBHOOK_SECRET") or WOMPI_INTEGRITY_SECRET
 WOMPI_URL = os.getenv("WOMPI_URL", "https://sandbox.wompi.co/v1")
 BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http://localhost:8000"
-FRONTEND_BASE_URL = (os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500").rstrip("index.html")
+_frontend_base_url_raw = _strip_index_html_suffix(os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500")
+FRONTEND_BASE_URL = _frontend_base_url_raw.rstrip("/") or "http://localhost:5500"
 SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "").strip()
 BACKEND_API_KEYS = [
@@ -182,7 +196,8 @@ SUPPORT_EMAIL = (os.getenv("SUPPORT_EMAIL") or SMTP_FROM or "").strip()
 AGREED_SHIPPING_ZONE = "Envío a convenir con el cliente"
 AGREED_SHIPPING_MESSAGE = "Nos contactaremos contigo para convenir el envío según tus necesidades específicas."
 
-SIIGO_API_BASE_URL = (os.getenv("SIIGO_API_BASE_URL") or "https://api.siigo.com").rstrip("index.html")
+_siigo_api_base_url_raw = _strip_index_html_suffix(os.getenv("SIIGO_API_BASE_URL") or "https://api.siigo.com")
+SIIGO_API_BASE_URL = _siigo_api_base_url_raw.rstrip("/") or "https://api.siigo.com"
 SIIGO_PRODUCTS_PATH = (os.getenv("SIIGO_PRODUCTS_PATH") or "/v1/products").strip()
 SIIGO_USERNAME = (os.getenv("SIIGO_USERNAME") or os.getenv("SIIGO_API_USER") or "").strip()
 SIIGO_ACCESS_KEY = (os.getenv("SIIGO_ACCESS_KEY") or "").strip()
@@ -202,7 +217,7 @@ SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT = (
 SIIGO_SYNC_INVENTORY_ON_APPROVED = (
     os.getenv("SIIGO_SYNC_INVENTORY_ON_APPROVED", "true") or "true"
 ).strip().lower() in {"1", "true", "yes", "y", "on"}
-_siigo_inventory_update_path_default = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("index.html")
+_siigo_inventory_update_path_default = _strip_index_html_suffix(SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/") or "/v1/products"
 SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE = (
     os.getenv("SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE")
     or f"{_siigo_inventory_update_path_default}/{{product_id}}"
@@ -1194,7 +1209,7 @@ def siigo_build_inventory_update_path(product_id: str) -> str:
     template = (SIIGO_INVENTORY_UPDATE_PATH_TEMPLATE or "").strip()
 
     if not template:
-        base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("index.html")
+        base_path = _strip_index_html_suffix(SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/") or "/v1/products"
         return f"{base_path}/{encoded_id}"
 
     if "{product_id}" in template:
@@ -1276,7 +1291,7 @@ def siigo_fetch_product_by_id(product_id: str) -> tuple[dict | None, str | None]
     if not product_id_raw:
         return None, "missing_product_id"
 
-    base_path = (SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("index.html")
+    base_path = _strip_index_html_suffix(SIIGO_PRODUCTS_PATH or "/v1/products").rstrip("/") or "/v1/products"
     path = f"{base_path}/{quote(product_id_raw, safe='')}"
 
     try:
