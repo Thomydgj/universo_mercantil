@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const BACKEND_BASE_URL = (runtimeConfig.backendBaseUrl || "http://localhost:8000").replace(/\/$/, "");
   const SALES_WHATSAPP_NUMBER = runtimeConfig.whatsapp || "573001234567";
   const BACKEND_API_KEY = runtimeConfig.apiKey || "";
+  const DEFAULT_IVA_PERCENT = 19;
 
   const buildRequestHeaders = (idempotencyKey = "") => {
     const headers = { "Content-Type": "application/json" };
@@ -40,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let paymentTab = null;
 
-    const { calcularTotal, calcularSubtotal, carrito } = window.carritoModule || {};
+    const { calcularTotal, calcularSubtotal, calcularIva, carrito, tasaIva } = window.carritoModule || {};
 
     if (!calcularTotal || !calcularSubtotal || !carrito) {
       notify("No se pudo cargar el carrito. Intenta nuevamente.", "error");
@@ -60,9 +61,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const carritoActual = JSON.parse(localStorage.getItem("carrito")) || carrito;
 
     const subtotal = calcularSubtotal();
+    const ivaPercent = Number.isFinite(Number(tasaIva)) ? Number(tasaIva) : DEFAULT_IVA_PERCENT;
+    const iva = typeof calcularIva === "function"
+      ? Number(calcularIva()) || 0
+      : Math.round((subtotal * ivaPercent) / 100);
     const shipping_cost = 0;
-    const total = subtotal + shipping_cost;
-    const amount_in_cents = total * 100;
+    const total = subtotal + iva + shipping_cost;
+    const amount_in_cents = Math.round(total * 100);
     const WOMPI_MIN_AMOUNT_IN_CENTS = 150000; // 1500 COP
     const paymentMethod = window.datosEnvioConfirmados?.paymentMethod || "wompi";
     const deliveryType = window.datosEnvioConfirmados?.deliveryType || "shipping";
@@ -121,6 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
       collect_shipping: true,
       single_use: true,
       subtotal,
+      tax_amount: iva,
+      tax_rate_percent: ivaPercent,
       shipping_cost,
       shipping_zone: window.datosEnvioConfirmados?.shippingZone || "Envío a convenir con el cliente",
       delivery_type: deliveryType,

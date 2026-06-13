@@ -161,6 +161,11 @@ BACKEND_API_KEYS = [
 ]
 MIN_ORDER_AMOUNT_IN_CENTS = int(os.getenv("MIN_ORDER_AMOUNT_IN_CENTS", "50000"))
 MAX_ORDER_AMOUNT_IN_CENTS = int(os.getenv("MAX_ORDER_AMOUNT_IN_CENTS", "10000000000"))
+try:
+    IVA_PERCENT = int(os.getenv("IVA_PERCENT", "19"))
+except (TypeError, ValueError):
+    IVA_PERCENT = 19
+IVA_PERCENT = max(0, min(100, IVA_PERCENT))
 RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 RATE_LIMIT_MAX_REQUESTS = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "50"))
 RATE_LIMIT_CATALOG_WINDOW_SECONDS = _env_int("RATE_LIMIT_CATALOG_WINDOW_SECONDS", RATE_LIMIT_WINDOW_SECONDS)
@@ -263,6 +268,12 @@ def parse_int(value, default=0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def calculate_iva_amount(subtotal: int) -> int:
+    subtotal_value = max(0, parse_int(subtotal, 0))
+    # Integer math avoids float precision issues and matches frontend rounding.
+    return (subtotal_value * IVA_PERCENT + 50) // 100
 
 
 def parse_bool(value, default=False) -> bool:
@@ -1567,7 +1578,8 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
         return None, "Método de pago inválido"
 
     subtotal = items_total
-    amount_in_cents = (subtotal + shipping_cost) * 100
+    tax_amount = calculate_iva_amount(subtotal)
+    amount_in_cents = (subtotal + tax_amount + shipping_cost) * 100
     if amount_in_cents < MIN_ORDER_AMOUNT_IN_CENTS:
         return None, "El valor total del pedido no alcanza el mínimo permitido"
     if amount_in_cents > MAX_ORDER_AMOUNT_IN_CENTS:
@@ -1594,6 +1606,8 @@ def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict
         "shipping_address": shipping_address,
         "items": normalized_items,
         "subtotal": subtotal,
+        "tax_amount": tax_amount,
+        "tax_rate_percent": IVA_PERCENT,
         "shipping_cost": shipping_cost,
         "shipping_zone": shipping_zone,
         "shipping_message": shipping_message,
@@ -2652,6 +2666,8 @@ def checkout():
     shipping_address = normalized_payload["shipping_address"]
     items = normalized_payload["items"]
     subtotal = normalized_payload["subtotal"]
+    tax_amount = normalized_payload["tax_amount"]
+    tax_rate_percent = normalized_payload["tax_rate_percent"]
     shipping_cost = normalized_payload["shipping_cost"]
     shipping_zone = normalized_payload["shipping_zone"]
     shipping_message = normalized_payload["shipping_message"]
@@ -2703,6 +2719,8 @@ def checkout():
             "name": name,
             "description": description,
             "subtotal": subtotal,
+            "tax_amount": tax_amount,
+            "tax_rate_percent": tax_rate_percent,
             "shipping_cost": shipping_cost,
             "shipping_zone": shipping_zone,
             "shipping_message": shipping_message,
@@ -2759,6 +2777,8 @@ def create_order_for_direct_payment():
     shipping_address = normalized_payload["shipping_address"]
     delivery_type = normalized_payload["delivery_type"]
     payment_method = "direct"
+    tax_amount = normalized_payload["tax_amount"]
+    tax_rate_percent = normalized_payload["tax_rate_percent"]
     shipping_cost = normalized_payload["shipping_cost"]
     shipping_zone = normalized_payload["shipping_zone"]
     shipping_message = normalized_payload["shipping_message"]
@@ -2770,6 +2790,8 @@ def create_order_for_direct_payment():
         "name": normalized_payload["name"],
         "description": normalized_payload["description"],
         "subtotal": normalized_payload["subtotal"],
+        "tax_amount": tax_amount,
+        "tax_rate_percent": tax_rate_percent,
         "shipping_cost": shipping_cost,
         "shipping_zone": shipping_zone,
         "shipping_message": shipping_message,
@@ -2796,6 +2818,8 @@ def create_order_for_direct_payment():
         "shipping_zone": shipping_zone,
         "shipping_message": shipping_message,
         "subtotal": normalized_payload["subtotal"],
+        "tax_amount": tax_amount,
+        "tax_rate_percent": tax_rate_percent,
         "pickup_message": normalized_payload["pickup_message"],
         "status": "pending_payment",
     }

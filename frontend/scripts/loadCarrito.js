@@ -2,6 +2,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const contenedor = document.getElementById("container-tarjetas-carrito");
   const template = document.getElementById("template-carrito");
+  const IVA_PERCENT = 19;
 
   let carrito = JSON.parse(localStorage.getItem("carrito")) || [];
 
@@ -96,6 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
       totalDiv.classList.add("precio-pedido");
       totalDiv.innerHTML = `
         <p class="total-line">Subtotal: <strong class="subtotal-pedido">$${calcularSubtotal().toLocaleString("es-CO")}</strong></p>
+        <p class="total-line">IVA (${IVA_PERCENT}%): <strong class="iva-pedido">$${calcularIva().toLocaleString("es-CO")}</strong></p>
         <p class="total-line">Envío: <strong class="envio-pedido">${obtenerTextoEnvio()}</strong></p>
         <p class="total-zone">Modalidad de envío: <span class="zona-pedido">${obtenerZonaEnvio()}</span></p>
         <h3 class="total-pedido">Total del pedido: <span class="total-pedido-valor">$${calcularTotal().toLocaleString("es-CO")}</span></h3>
@@ -114,17 +116,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return carrito.reduce((acc, prod) => acc + prod.precio * prod.cantidad, 0);
   }
 
+  function calcularIva() {
+    return Math.round((calcularSubtotal() * IVA_PERCENT) / 100);
+  }
+
   function calcularTotal() {
-    return calcularSubtotal() + obtenerCostoEnvio();
+    return calcularSubtotal() + calcularIva() + obtenerCostoEnvio();
   }
 
   function actualizarTotal() {
     const subtotalNodo = contenedor.querySelector(".subtotal-pedido");
+    const ivaNodo = contenedor.querySelector(".iva-pedido");
     const envioNodo = contenedor.querySelector(".envio-pedido");
     const zonaNodo = contenedor.querySelector(".zona-pedido");
     const totalNodo = contenedor.querySelector(".total-pedido-valor");
 
     if (subtotalNodo) subtotalNodo.textContent = `$${calcularSubtotal().toLocaleString("es-CO")}`;
+    if (ivaNodo) ivaNodo.textContent = `$${calcularIva().toLocaleString("es-CO")}`;
     if (envioNodo) envioNodo.textContent = obtenerTextoEnvio();
     if (zonaNodo) zonaNodo.textContent = obtenerZonaEnvio();
     if (totalNodo) totalNodo.textContent = `$${calcularTotal().toLocaleString("es-CO")}`;
@@ -134,7 +142,9 @@ document.addEventListener("DOMContentLoaded", () => {
   window.carritoModule = {
     renderCarrito,
     calcularSubtotal,
+    calcularIva,
     calcularTotal,
+    tasaIva: IVA_PERCENT,
     carrito
   };
 
