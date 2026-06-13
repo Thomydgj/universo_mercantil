@@ -3240,6 +3240,52 @@ h2::after {
     margin-bottom: 14px;
 }
 
+.catalogo-real-busqueda {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 760px;
+    margin: 0 auto 14px;
+}
+
+.catalogo-real-busqueda-input {
+    flex: 1;
+    min-height: 40px;
+    border: 1px solid #c5d7ea;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #2f4f69;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.92rem;
+    padding: 8px 14px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.catalogo-real-busqueda-input:focus {
+    border-color: #034d99;
+    box-shadow: 0 0 0 3px rgba(3, 77, 153, 0.12);
+}
+
+.catalogo-real-busqueda-clear {
+    min-height: 38px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid #bfd2e6;
+    background: #ffffff;
+    color: #35516a;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.catalogo-real-busqueda-clear:hover {
+    border-color: #034d99;
+    color: #034d99;
+}
+
 .catalogo-real-filtro-btn {
     min-height: 36px;
     padding: 6px 13px;
@@ -3915,6 +3961,15 @@ body.catalogo-modal-open {
         flex-wrap: nowrap;
         overflow-x: auto;
         padding-bottom: 4px;
+    }
+
+    .catalogo-real-busqueda {
+        width: 100%;
+        margin-bottom: 12px;
+    }
+
+    .catalogo-real-busqueda-clear {
+        white-space: nowrap;
     }
 
     .catalogo-real-filtro-btn {

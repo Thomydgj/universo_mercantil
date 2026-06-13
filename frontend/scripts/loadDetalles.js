@@ -45,17 +45,23 @@ const CATALOGO_REAL_MAX_INTENTOS_CONSULTA = 3;
 const CATALOGO_REAL_RETRY_DELAY_MS = 900;
 const CATALOGO_REAL_CACHE_TTL_MS = Math.max(0, Number(runtimeConfig.siigoCatalogCacheTtlMs || 300000));
 const CATALOGO_REAL_CACHE_STORAGE_KEY = `universo:siigo:catalogo:${backendBaseUrl || "default"}`;
+const CATALOGO_REAL_BUSQUEDA_INPUT_ID = "catalogo-real-busqueda-input";
+const CATALOGO_REAL_BUSQUEDA_CLEAR_ID = "catalogo-real-busqueda-clear";
 const FILTROS_CATALOGO_SIIGO = [
   { id: "todos", label: "Todos", categoriasSiigo: [] },
-  { id: "carnicos", label: "Cárnicos", categoriasSiigo: ["fundas", "termoencogible"] },
+  { id: "carnicos", label: "Cárnicos", categoriasSiigo: ["carnicos", "fundas", "termoencogible"] },
   { id: "termoformados", label: "Termoformados", categoriasSiigo: ["termoformado"] },
-  { id: "flexibles", label: "Bolsas flexibles", categoriasSiigo: ["bolsas", "bolsas de cafe"] }
+  { id: "flexibles", label: "Bolsas flexibles", categoriasSiigo: ["bolsas flexibles", "bolsas", "bolsas de cafe"] }
 ];
 const ALIAS_CATEGORIA_SIIGO = {
+  "carnicos": "carnicos",
   "bolsa": "bolsas",
+  "bolsa flexible": "bolsas flexibles",
   "bolsas": "bolsas",
+  "bolsas flexibles": "bolsas flexibles",
   "bolsas de cafe": "bolsas de cafe",
   "bolsas de aditamiento": "bolsas de aditamiento",
+  "flexibles": "bolsas flexibles",
   "termoencogible": "termoencogible",
   "termoencogibles": "termoencogible",
   "termo encogible": "termoencogible",
@@ -217,6 +223,180 @@ const guardarCacheCatalogoReal = (query, items) => {
 
 const normalizarTexto = valor => String(valor || "").trim();
 const normalizarClaveImagenSiigo = valor => String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+const SKUS_POR_CATEGORIA_SIIGO = {
+  "carnicos": "NTX322RL; A09026RL; A09025RL; A08017RL; C14463RL; A09027RL; B00278RL; A05523RL; A03883RL; A15625RL; A09024RL; A11814RL; C16987RL; C10527RL; Z00006; Z00001; Z00008; Z00005; Z00002; Z00332; D53008; Z00101; Z00116; Z00150; Z00500; Z00501; Z00600; Z00502; Z00503; Z00504; Z00601; Z00602; Z00642; Z00739; Z00707; Z00269; Z00762; Z00294; Z00729; Z00738; Z00750; Z00717; Z00724; Z00736; Z00690; Z00734; Z00334; Z00732; Z00765; Z00735; Z00590; Z00731; Z00770; Z00275; Z00728; Z00755; Z00589; Z00730; Z00737; Z00789; Z00039; Z00336; Z00037; Z00040; Z00038; Z00708; Z00709; Z00710; Z00711; Z00712",
+  "bolsas flexibles": "NTO083; A14047; NTJ637; A11870; NTC251; NTD761; NTH509; NTK176; A04664; C16031; NTD005; NTC382; NTC187; NTC445; NTC147; NTJ399; NTC311; C24995; NTC386; NTC171; NTA942; NTC390; NTO497; NTC791; A07537; NTX780; NTC149; NTC381; C02199; NTC406; NTH447; NTK823; NTA530; NTK693; NTC359; C27580; C39140; D13865; D21087; C15443; A05272; NTC752; NT/443; C69675; D45576; NTM183; A05043; A05043CV; D00914; D00907; D00914CV; D00907CV; D00914CVP; D00907CVP; D00919; D00918; D00919CV; D00918CV; D00919CVP; D00918CVP; D59859; C68593; C68592; D59876; C68593CV; C68592CV; C68593CVP; C68592CVP; C49808; C37508; C31224; A10235; A01746; A10235CV; A01746CV; A10235CVP; A01746CVP; C27939; C27937; C27939CV; C27937CV; C27939CVP; C27937CVP; D61917; D61922; D61914; D28476; D29129; D29128; D29131; D29130; MUZ00218; MUZ00219; MUZ00220; NTJ370; NTH964; NTH963; NTH962; NTH364; NTJ492; NTJ050; NTJ051; NTJ496; NTO711; NTH965; NTH961; NTJ433; NTJ498; NTJ499; NTJ500; C69455; D35440; D35442; A12930; A03143; A03144; A07175; A03143CV; A03144CV; A07175CV; D48999; D48998; D48993; D48985; D48985CV; C63356; A05079; A05079CV; A06503; A06503CV; A07925; C26309; C26307; C26301; C28594; C26299; C27948; C27948CV; C27955; C27955CV; C28731; C28731CV; C68701; C68702; C68704; C74441; C74451; C82035; C54853; D21547; D21539; D35618; D27480; D27481; C60451; C60447; Z00798; Z00799",
+  "termoformado": "T00072; T00082; T00135; T00137; T00165; T00197; T00291; T00310; T00311; T00325; T00327; T00366; T00377; T00378; T00599; T00658; T00676; T00689; T00697; T00709; T01043; T01044; T01049; T01050; T01079; T01119; T01130; T01190; T01194; T01233; T01234; T01235; T01236; T01251; T01361; T01392; T01427; T01429; T01467; T01479; T01528; T01642; T01721; T01771; T01774; T04725; T04874; T04875; T05701; T05702"
+};
+const construirIndiceCategoriaSiigoPorSku = () => {
+  const indice = {};
+
+  Object.entries(SKUS_POR_CATEGORIA_SIIGO).forEach(([categoria, listado]) => {
+    String(listado || "")
+      .split(";")
+      .map(sku => normalizarClaveImagenSiigo(sku))
+      .filter(Boolean)
+      .forEach(skuNormalizado => {
+        if (!Object.prototype.hasOwnProperty.call(indice, skuNormalizado)) {
+          indice[skuNormalizado] = categoria;
+        }
+      });
+  });
+
+  return indice;
+};
+const INDICE_CATEGORIA_SIIGO_POR_SKU = construirIndiceCategoriaSiigoPorSku();
+const resolverCategoriaSiigoPorReglaSku = itemSiigo => {
+  const skuNormalizado = normalizarClaveImagenSiigo(
+    normalizarTexto(itemSiigo?.sku) || normalizarTexto(itemSiigo?.id)
+  );
+  if (!skuNormalizado) return "";
+  return INDICE_CATEGORIA_SIIGO_POR_SKU[skuNormalizado] || "";
+};
+const TERMOFORMADOS_MULTIPLO_80 = new Set([
+  "T01721",
+  "T01044",
+  "T04725",
+  "T01043"
+].map(normalizarClaveImagenSiigo));
+const TERMOFORMADOS_MULTIPLO_50 = new Set([
+  "T01392",
+  "T01236",
+  "T01235",
+  "T01234",
+  "T01479",
+  "T01233"
+].map(normalizarClaveImagenSiigo));
+const MULTIPLO_ESPECIAL_POR_SKU = {
+  [normalizarClaveImagenSiigo("A03143CV")]: 100,
+  [normalizarClaveImagenSiigo("A03144CV")]: 50,
+  [normalizarClaveImagenSiigo("A07175CV")]: 50,
+  [normalizarClaveImagenSiigo("NTN890")]: 200,
+};
+const obtenerSkuNormalizadoSiigo = itemSiigo => normalizarClaveImagenSiigo(
+  normalizarTexto(itemSiigo?.sku) || normalizarTexto(itemSiigo?.id)
+);
+const normalizarTextoReglaMultiplo = valor => String(valor || "")
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9\s]/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+const obtenerCantidadInicialPorMultiplo = multiplo => (
+  Number.isInteger(multiplo) && multiplo > 1 ? multiplo : 1
+);
+const esCantidadValidaParaMultiplo = (cantidad, multiplo) => {
+  if (!Number.isInteger(cantidad) || cantidad < 1) {
+    return false;
+  }
+
+  if (!Number.isInteger(multiplo) || multiplo < 2) {
+    return true;
+  }
+
+  return cantidad % multiplo === 0;
+};
+const resolverMultiploCantidadSiigo = itemSiigo => {
+  const skuNormalizado = obtenerSkuNormalizadoSiigo(itemSiigo);
+
+  if (skuNormalizado && Number.isInteger(MULTIPLO_ESPECIAL_POR_SKU[skuNormalizado])) {
+    return MULTIPLO_ESPECIAL_POR_SKU[skuNormalizado];
+  }
+
+  if (skuNormalizado && TERMOFORMADOS_MULTIPLO_80.has(skuNormalizado)) {
+    return 80;
+  }
+
+  if (skuNormalizado && TERMOFORMADOS_MULTIPLO_50.has(skuNormalizado)) {
+    return 50;
+  }
+
+  const nombreNormalizado = normalizarTextoReglaMultiplo(itemSiigo?.nombre);
+  const categoriasItem = obtenerCategoriasItemSiigo(itemSiigo);
+  const contieneNombre = termino => nombreNormalizado.includes(termino);
+  const contieneCategoria = categoria => categoriasItem.includes(categoria);
+  const esFlexUp = contieneNombre("flex up") || contieneNombre("flexup");
+  const tieneZipper = contieneNombre("zipper");
+  const tieneValvula = contieneNombre("valvula");
+
+  if (contieneNombre("maxibag")) {
+    return 1;
+  }
+
+  if (esFlexUp && tieneZipper && tieneValvula) {
+    const esNegra = contieneNombre("negra") || contieneNombre("negro");
+    const medida1624 = /\b16\s*x\s*24\b|\b16x24\b/.test(nombreNormalizado);
+    const medida1925 = /\b19\s*x\s*25\b|\b19x25\b/.test(nombreNormalizado);
+    const medida2844 = /\b28\s*x\s*44\b|\b28x44\b|\b28\s+44\b/.test(nombreNormalizado);
+
+    if (esNegra && medida1624) {
+      return 100;
+    }
+
+    if (esNegra && (medida1925 || medida2844)) {
+      return 50;
+    }
+  }
+
+  if (esFlexUp && tieneZipper && !tieneValvula) {
+    return 200;
+  }
+
+  if (esFlexUp && !tieneZipper && !tieneValvula) {
+    return 200;
+  }
+
+  const esBolsaPlana = contieneNombre("bolsa plana") || contieneNombre("bolsas planas") || contieneNombre("plana");
+  if (esBolsaPlana && tieneValvula) {
+    return 50;
+  }
+
+  if (tieneValvula) {
+    return 100;
+  }
+
+  if (contieneNombre("quadseal") || contieneNombre("quad seal")) {
+    return 50;
+  }
+
+  if (contieneNombre("flowpack") || contieneNombre("flow pack")) {
+    return 100;
+  }
+
+  if (esBolsaPlana) {
+    return 200;
+  }
+
+  if (contieneNombre("termoencogible") || contieneCategoria("termoencogible")) {
+    return 100;
+  }
+
+  const categoriaPorReglaSku = resolverCategoriaSiigoPorReglaSku(itemSiigo);
+  if (categoriaPorReglaSku === "termoformado") {
+    return 100;
+  }
+
+  if (categoriasItem.includes("termoformado")) {
+    return 100;
+  }
+
+  return 1;
+};
+const configurarInputCantidadPorMultiplo = (input, multiplo, stockNumerico) => {
+  if (!input) return;
+
+  const minimo = obtenerCantidadInicialPorMultiplo(multiplo);
+  input.value = String(minimo);
+  input.step = String(minimo);
+  input.min = String(minimo);
+
+  if (!Number.isFinite(stockNumerico) || stockNumerico <= 0) {
+    input.removeAttribute("max");
+  } else {
+    input.max = String(stockNumerico);
+  }
+};
 const normalizarDescripcionSiigo = valor => {
   const base = String(valor || "")
     .replace(/\r/g, "\n")
@@ -479,6 +659,12 @@ const obtenerCategoriasItemSiigo = itemSiigo => {
     return [];
   }
 
+  // Regla de negocio prioritaria: cuando el SKU esta mapeado, su categoria queda fija.
+  const categoriaPorReglaSku = resolverCategoriaSiigoPorReglaSku(itemSiigo);
+  if (categoriaPorReglaSku) {
+    return [categoriaPorReglaSku];
+  }
+
   const categorias = [
     ...normalizarCategoriasDesdeValorSiigo(itemSiigo.categoria),
     ...normalizarCategoriasDesdeValorSiigo(itemSiigo.categorias),
@@ -519,6 +705,73 @@ const itemPerteneceFiltroSiigo = (itemSiigo, filtroCatalogo) => {
 const filtrarItemsCatalogoPorFiltro = (itemsSiigo, filtroId) => {
   const filtro = obtenerFiltroCatalogoPorId(filtroId);
   return (Array.isArray(itemsSiigo) ? itemsSiigo : []).filter(item => itemPerteneceFiltroSiigo(item, filtro));
+};
+
+const asegurarBuscadorCatalogoReal = () => {
+  if (!catalogoRealFiltros || !catalogoRealFiltros.parentElement) {
+    return null;
+  }
+
+  const parent = catalogoRealFiltros.parentElement;
+  let wrapper = parent.querySelector(".catalogo-real-busqueda");
+
+  if (!wrapper) {
+    wrapper = document.createElement("div");
+    wrapper.className = "catalogo-real-busqueda";
+
+    const input = document.createElement("input");
+    input.type = "search";
+    input.id = CATALOGO_REAL_BUSQUEDA_INPUT_ID;
+    input.className = "catalogo-real-busqueda-input";
+    input.placeholder = "Buscar por nombre o SKU";
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", "Buscar referencias del catálogo");
+
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.id = CATALOGO_REAL_BUSQUEDA_CLEAR_ID;
+    clearBtn.className = "catalogo-real-busqueda-clear";
+    clearBtn.textContent = "Limpiar";
+    clearBtn.hidden = true;
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(clearBtn);
+    parent.insertBefore(wrapper, catalogoRealFiltros);
+  }
+
+  const input = wrapper.querySelector(`#${CATALOGO_REAL_BUSQUEDA_INPUT_ID}`);
+  const clearBtn = wrapper.querySelector(`#${CATALOGO_REAL_BUSQUEDA_CLEAR_ID}`);
+  if (!input || !clearBtn) {
+    return null;
+  }
+
+  return { wrapper, input, clearBtn };
+};
+
+const actualizarBotonLimpiarBusqueda = ({ input, clearBtn }) => {
+  if (!input || !clearBtn) return;
+  clearBtn.hidden = !normalizarTexto(input.value);
+};
+
+const filtrarItemsCatalogoPorBusqueda = (itemsSiigo, busqueda) => {
+  const termino = normalizarTextoComparacion(busqueda);
+  if (!termino) {
+    return Array.isArray(itemsSiigo) ? itemsSiigo : [];
+  }
+
+  const terminos = termino.split(" ").filter(Boolean);
+  return (Array.isArray(itemsSiigo) ? itemsSiigo : []).filter(item => {
+    const categorias = obtenerCategoriasItemSiigo(item).join(" ");
+    const haystack = normalizarTextoComparacion([
+      item?.nombre,
+      item?.sku,
+      item?.id,
+      item?.categoria,
+      categorias,
+    ].filter(Boolean).join(" "));
+
+    return terminos.every(parte => haystack.includes(parte));
+  });
 };
 
 const detectarTipoTermoformado = itemSiigo => {
@@ -725,7 +978,12 @@ const obtenerEstadoComercialItem = itemSiigo => {
 const obtenerCantidadModalCatalogo = () => {
   if (!catalogoModalCantidad) return 1;
   const cantidad = parseInt(catalogoModalCantidad.value, 10);
-  return Number.isInteger(cantidad) && cantidad > 0 ? cantidad : 1;
+  if (Number.isInteger(cantidad) && cantidad > 0) {
+    return cantidad;
+  }
+
+  const multiplo = resolverMultiploCantidadSiigo(estadoCatalogoModal.itemSiigo);
+  return obtenerCantidadInicialPorMultiplo(multiplo);
 };
 
 function cargarManifestImagenesSiigo() {
@@ -916,6 +1174,12 @@ function agregarItemSiigoAlCarrito(productoBase, itemSiigo, cantidadSolicitada) 
     return false;
   }
 
+  const multiploCantidad = resolverMultiploCantidadSiigo(itemSiigo);
+  if (!esCantidadValidaParaMultiplo(cantidadSolicitada, multiploCantidad)) {
+    notify(`Esta referencia se vende en múltiplos de ${multiploCantidad} unidades.`, "warning");
+    return false;
+  }
+
   const stock = Number(itemSiigo.cantidad);
   if (Number.isFinite(stock) && stock > 0 && cantidadSolicitada > stock) {
     notify(`Solo hay ${stock} unidad${stock === 1 ? "" : "es"} disponible${stock === 1 ? "" : "s"}.`, "warning");
@@ -1034,6 +1298,11 @@ function renderizarModalCatalogo() {
   const nombre = normalizarTexto(itemSiigo.nombre) || "Referencia comercial";
   const skuValor = normalizarTexto(itemSiigo.sku) || "Sin referencia";
   const estadoComercial = obtenerEstadoComercialItem(itemSiigo);
+  const multiploCantidad = resolverMultiploCantidadSiigo(itemSiigo);
+  const minimoPedido = obtenerCantidadInicialPorMultiplo(multiploCantidad);
+  const stockInsuficienteParaMultiplo = Number.isFinite(estadoComercial.stockNumerico)
+    && estadoComercial.stockNumerico > 0
+    && estadoComercial.stockNumerico < minimoPedido;
 
   if (catalogoModalTitulo) {
     catalogoModalTitulo.textContent = nombre;
@@ -1065,6 +1334,9 @@ function renderizarModalCatalogo() {
     } else if (estadoComercial.sinStock) {
       catalogoModalStock.textContent = "Sin inventario";
       catalogoModalStock.classList.add("sin-stock");
+    } else if (stockInsuficienteParaMultiplo) {
+      catalogoModalStock.textContent = `${estadoComercial.stockNumerico} disponible${estadoComercial.stockNumerico === 1 ? "" : "s"}. Minimo por pedido: ${minimoPedido}.`;
+      catalogoModalStock.classList.add("sin-stock");
     } else {
       catalogoModalStock.textContent = `${estadoComercial.stockNumerico} disponible${estadoComercial.stockNumerico === 1 ? "" : "s"}`;
       catalogoModalStock.classList.remove("sin-stock");
@@ -1072,15 +1344,10 @@ function renderizarModalCatalogo() {
   }
 
   if (catalogoModalCantidad) {
-    catalogoModalCantidad.value = "1";
-    if (Number.isFinite(estadoComercial.stockNumerico) && estadoComercial.stockNumerico > 0) {
-      catalogoModalCantidad.max = String(estadoComercial.stockNumerico);
-    } else {
-      catalogoModalCantidad.removeAttribute("max");
-    }
+    configurarInputCantidadPorMultiplo(catalogoModalCantidad, multiploCantidad, estadoComercial.stockNumerico);
   }
 
-  const bloquearCompra = estadoComercial.sinStock || estadoComercial.sinPrecio;
+  const bloquearCompra = estadoComercial.sinStock || estadoComercial.sinPrecio || stockInsuficienteParaMultiplo;
   if (catalogoModalAgregar) {
     catalogoModalAgregar.disabled = bloquearCompra;
   }
@@ -1156,7 +1423,8 @@ function inicializarEventosModalCatalogo() {
       const cantidad = obtenerCantidadModalCatalogo();
       const agregado = agregarItemSiigoAlCarrito(estadoCatalogoModal.productoBase, estadoCatalogoModal.itemSiigo, cantidad);
       if (agregado && catalogoModalCantidad) {
-        catalogoModalCantidad.value = "1";
+        const multiplo = resolverMultiploCantidadSiigo(estadoCatalogoModal.itemSiigo);
+        catalogoModalCantidad.value = String(obtenerCantidadInicialPorMultiplo(multiplo));
       }
     });
   }
@@ -1243,8 +1511,13 @@ function crearTarjetaCatalogoReal(productoBase, itemSiigo) {
 
   const stockNumerico = Number(itemSiigo.cantidad);
   const precioNumerico = Number(itemSiigo.precio);
+  const multiploCantidad = resolverMultiploCantidadSiigo(itemSiigo);
+  const minimoPedido = obtenerCantidadInicialPorMultiplo(multiploCantidad);
   const sinStock = Number.isFinite(stockNumerico) && stockNumerico <= 0;
   const sinPrecio = !Number.isFinite(precioNumerico) || precioNumerico < 0;
+  const stockInsuficienteParaMultiplo = Number.isFinite(stockNumerico)
+    && stockNumerico > 0
+    && stockNumerico < minimoPedido;
 
   if (stock) {
     if (!Number.isFinite(stockNumerico)) {
@@ -1253,6 +1526,9 @@ function crearTarjetaCatalogoReal(productoBase, itemSiigo) {
     } else if (sinStock) {
       stock.textContent = "Sin inventario";
       stock.classList.add("sin-stock");
+    } else if (stockInsuficienteParaMultiplo) {
+      stock.textContent = `${stockNumerico} disponible${stockNumerico === 1 ? "" : "s"}. Minimo por pedido: ${minimoPedido}.`;
+      stock.classList.add("sin-stock");
     } else {
       stock.textContent = `${stockNumerico} disponible${stockNumerico === 1 ? "" : "s"}`;
       stock.classList.remove("sin-stock");
@@ -1260,21 +1536,16 @@ function crearTarjetaCatalogoReal(productoBase, itemSiigo) {
   }
 
   if (inputCantidad) {
-    inputCantidad.value = "1";
-    if (!Number.isFinite(stockNumerico) || stockNumerico <= 0) {
-      inputCantidad.removeAttribute("max");
-    } else {
-      inputCantidad.max = String(stockNumerico);
-    }
+    configurarInputCantidadPorMultiplo(inputCantidad, multiploCantidad, stockNumerico);
   }
 
   if (btnAgregar && inputCantidad) {
-    btnAgregar.disabled = sinStock || sinPrecio;
+    btnAgregar.disabled = sinStock || sinPrecio || stockInsuficienteParaMultiplo;
     btnAgregar.addEventListener("click", () => {
       const cantidad = parseInt(inputCantidad.value, 10);
       const agregado = agregarItemSiigoAlCarrito(productoBase, itemSiigo, cantidad);
       if (agregado) {
-        inputCantidad.value = "1";
+        inputCantidad.value = String(minimoPedido);
       }
     });
   }
@@ -1461,6 +1732,16 @@ async function cargarCatalogoRealSiigo(productoBase) {
     return;
   }
 
+  const buscador = asegurarBuscadorCatalogoReal();
+  if (buscador) {
+    buscador.wrapper.hidden = true;
+    buscador.input.value = "";
+    buscador.input.disabled = true;
+    buscador.input.oninput = null;
+    buscador.clearBtn.hidden = true;
+    buscador.clearBtn.onclick = null;
+  }
+
   if (!backendBaseUrl) {
     actualizarEstadoCatalogoReal("No se encontró configuración de backend para consultar el catálogo.", "warning");
     limpiarPaginacionCatalogoReal();
@@ -1488,19 +1769,32 @@ async function cargarCatalogoRealSiigo(productoBase) {
       return;
     }
 
+    if (buscador) {
+      buscador.wrapper.hidden = false;
+      buscador.input.disabled = false;
+      buscador.input.value = "";
+      actualizarBotonLimpiarBusqueda(buscador);
+    }
+
     let filtroActivo = resolverFiltroInicialCatalogo(productoBase);
-    const aplicarFiltro = filtroId => {
-      filtroActivo = obtenerFiltroCatalogoPorId(filtroId).id;
+    let busquedaActiva = "";
+
+    const aplicarVistaCatalogo = () => {
       renderizarFiltrosCatalogoReal(filtroActivo, aplicarFiltro);
 
       const filtroActual = obtenerFiltroCatalogoPorId(filtroActivo);
-      const itemsFiltrados = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
+      const itemsFiltradosPorFiltro = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
+      const itemsFiltrados = filtrarItemsCatalogoPorBusqueda(itemsFiltradosPorFiltro, busquedaActiva);
       const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroActivo);
 
       if (!itemsOrdenados.length) {
-        const mensajeVacio = filtroActual.id === "todos"
-          ? "No encontramos referencias en este momento."
-          : `No encontramos referencias para ${filtroActual.label.toLowerCase()} en este momento.`;
+        const mensajeVacio = busquedaActiva
+          ? (filtroActual.id === "todos"
+            ? `No encontramos resultados para "${busquedaActiva}".`
+            : `No encontramos resultados para "${busquedaActiva}" en ${filtroActual.label.toLowerCase()}.`)
+          : (filtroActual.id === "todos"
+            ? "No encontramos referencias en este momento."
+            : `No encontramos referencias para ${filtroActual.label.toLowerCase()} en este momento.`);
 
         actualizarEstadoCatalogoReal(mensajeVacio, "warning");
         catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>No hay referencias disponibles para este filtro en este momento.</p>";
@@ -1510,13 +1804,38 @@ async function cargarCatalogoRealSiigo(productoBase) {
 
       const total = itemsOrdenados.length;
       const plural = total === 1 ? "" : "s";
-      const mensaje = filtroActual.id === "todos"
-        ? `${total} referencia${plural} disponible${plural}.`
-        : `${total} referencia${plural} en ${filtroActual.label}.`;
+      const mensaje = busquedaActiva
+        ? (filtroActual.id === "todos"
+          ? `${total} resultado${plural} para "${busquedaActiva}".`
+          : `${total} resultado${plural} para "${busquedaActiva}" en ${filtroActual.label}.`)
+        : (filtroActual.id === "todos"
+          ? `${total} referencia${plural} disponible${plural}.`
+          : `${total} referencia${plural} en ${filtroActual.label}.`);
 
       actualizarEstadoCatalogoReal(mensaje, "success");
       renderizarCatalogoRealPaginado(productoBase, itemsOrdenados, { limpiarEstado: false });
     };
+
+    const aplicarFiltro = filtroId => {
+      filtroActivo = obtenerFiltroCatalogoPorId(filtroId).id;
+      aplicarVistaCatalogo();
+    };
+
+    if (buscador) {
+      buscador.input.oninput = () => {
+        busquedaActiva = normalizarTexto(buscador.input.value);
+        actualizarBotonLimpiarBusqueda(buscador);
+        aplicarVistaCatalogo();
+      };
+
+      buscador.clearBtn.onclick = () => {
+        buscador.input.value = "";
+        busquedaActiva = "";
+        actualizarBotonLimpiarBusqueda(buscador);
+        aplicarVistaCatalogo();
+        buscador.input.focus();
+      };
+    }
 
     aplicarFiltro(filtroActivo);
   } catch (error) {
@@ -1525,6 +1844,14 @@ async function cargarCatalogoRealSiigo(productoBase) {
     catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Ocurrió un problema consultando el catálogo. Verifica credenciales, permisos y conectividad del backend.</p>";
     limpiarPaginacionCatalogoReal();
     limpiarFiltrosCatalogoReal();
+
+    if (buscador) {
+      buscador.wrapper.hidden = true;
+      buscador.input.disabled = true;
+      buscador.input.oninput = null;
+      buscador.clearBtn.hidden = true;
+      buscador.clearBtn.onclick = null;
+    }
   }
 }
 
