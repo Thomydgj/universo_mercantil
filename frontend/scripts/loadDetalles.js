@@ -80,12 +80,92 @@ const estadoCatalogoModal = {
   imagenes: [],
   indiceImagen: 0
 };
-const notify = (message, type) => {
+const notify = (message, type, options) => {
   if (typeof window.showToast === "function") {
-    window.showToast(message, type);
+    window.showToast(message, type, options);
     return;
   }
   alert(message);
+};
+
+const requestJson = (url, options = {}) => {
+  const method = String(options.method || "GET").toUpperCase();
+  const headers = options.headers || {};
+  const body = Object.prototype.hasOwnProperty.call(options, "body") ? options.body : undefined;
+
+  return new Promise((resolve, reject) => {
+    if (typeof window.fetch === "function") {
+      const requestInit = {
+        method,
+        headers
+      };
+
+      if (body !== undefined) {
+        requestInit.body = body;
+      }
+
+      window.fetch(url, requestInit)
+        .then(async response => {
+          const responseText = await response.text();
+          let payload = {};
+          try {
+            payload = responseText ? JSON.parse(responseText) : {};
+          } catch {
+            payload = {};
+          }
+
+          resolve({
+            ok: response.ok,
+            status: response.status,
+            payload,
+            responseText
+          });
+        })
+        .catch(reject);
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url, true);
+
+    Object.entries(headers).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        xhr.setRequestHeader(key, value);
+      }
+    });
+
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== 4) return;
+
+      const responseText = xhr.responseText || "";
+      let payload = {};
+      try {
+        payload = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        payload = {};
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({
+          ok: true,
+          status: xhr.status,
+          payload,
+          responseText
+        });
+        return;
+      }
+
+      reject({
+        status: xhr.status,
+        payload,
+        responseText
+      });
+    };
+
+    xhr.onerror = () => reject(new Error("Network request failed"));
+    xhr.ontimeout = () => reject(new Error("Request timeout"));
+    xhr.send(body || null);
+  });
 };
 
 // Obtiene el parámetro "id" de la URL (ejemplo: producto.html?id=amipak1)
@@ -987,12 +1067,12 @@ const obtenerCantidadModalCatalogo = () => {
 };
 
 function cargarManifestImagenesSiigo() {
-  return fetch(RUTA_MANIFEST_IMAGENES_SIIGO)
-    .then(respuesta => (respuesta.ok ? respuesta.json() : {}))
-    .then(data => {
+  return requestJson(RUTA_MANIFEST_IMAGENES_SIIGO, { method: "GET" })
+    .then(({ payload }) => {
       manifestImagenesSiigo = {};
       manifestImagenesSiigoNormalizado = {};
 
+      const data = payload && typeof payload === "object" ? payload : {};
       if (!data || typeof data !== "object") {
         return manifestImagenesSiigo;
       }
@@ -1026,12 +1106,12 @@ function cargarManifestImagenesSiigo() {
 }
 
 function cargarManifestDescripcionesSiigo() {
-  return fetch(RUTA_MANIFEST_DESCRIPCIONES_SIIGO)
-    .then(respuesta => (respuesta.ok ? respuesta.json() : {}))
-    .then(data => {
+  return requestJson(RUTA_MANIFEST_DESCRIPCIONES_SIIGO, { method: "GET" })
+    .then(({ payload }) => {
       manifestDescripcionesSiigo = {};
       manifestDescripcionesSiigoNormalizado = {};
 
+      const data = payload && typeof payload === "object" ? payload : {};
       if (!data || typeof data !== "object") {
         return manifestDescripcionesSiigo;
       }
@@ -1223,7 +1303,10 @@ function agregarItemSiigoAlCarrito(productoBase, itemSiigo, cantidadSolicitada) 
   }
 
   localStorage.setItem("carrito", JSON.stringify(carrito));
-  notify("Referencia agregada al carrito", "success");
+  notify("Referencia agregada al carrito", "success", {
+    actionLabel: "Ver carrito",
+    actionHref: "/carrito"
+  });
   return true;
 }
 
@@ -1688,19 +1771,12 @@ async function consultarCatalogoRealSiigo(query) {
 
   for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
     try {
-      const response = await fetch(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
+      const response = await requestJson(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
         method: "GET",
         headers: construirHeadersBackend()
       });
 
-      const payloadText = await response.text();
-      let payload = {};
-      try {
-        payload = payloadText ? JSON.parse(payloadText) : {};
-      } catch {
-        payload = {};
-      }
-
+      const payload = response.payload || {};
       if (!response.ok || !payload.ok) {
         const error = new Error(payload.message || `Error HTTP ${response.status}`);
         error.status = response.status;
@@ -1784,14 +1860,14 @@ async function cargarCatalogoRealSiigo(productoBase) {
 
       const filtroActual = obtenerFiltroCatalogoPorId(filtroActivo);
       const itemsFiltradosPorFiltro = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
-      const itemsFiltrados = filtrarItemsCatalogoPorBusqueda(itemsFiltradosPorFiltro, busquedaActiva);
-      const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroActivo);
+      const itemsBaseBusqueda = busquedaActiva ? itemsSiigo : itemsFiltradosPorFiltro;
+      const itemsFiltrados = filtrarItemsCatalogoPorBusqueda(itemsBaseBusqueda, busquedaActiva);
+      const filtroOrdenamiento = busquedaActiva ? "todos" : filtroActivo;
+      const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroOrdenamiento);
 
       if (!itemsOrdenados.length) {
         const mensajeVacio = busquedaActiva
-          ? (filtroActual.id === "todos"
-            ? `No encontramos resultados para "${busquedaActiva}".`
-            : `No encontramos resultados para "${busquedaActiva}" en ${filtroActual.label.toLowerCase()}.`)
+          ? `No encontramos resultados para "${busquedaActiva}" en todo el catálogo.`
           : (filtroActual.id === "todos"
             ? "No encontramos referencias en este momento."
             : `No encontramos referencias para ${filtroActual.label.toLowerCase()} en este momento.`);
@@ -1805,9 +1881,7 @@ async function cargarCatalogoRealSiigo(productoBase) {
       const total = itemsOrdenados.length;
       const plural = total === 1 ? "" : "s";
       const mensaje = busquedaActiva
-        ? (filtroActual.id === "todos"
-          ? `${total} resultado${plural} para "${busquedaActiva}".`
-          : `${total} resultado${plural} para "${busquedaActiva}" en ${filtroActual.label}.`)
+        ? `${total} resultado${plural} para "${busquedaActiva}" en todo el catálogo.`
         : (filtroActual.id === "todos"
           ? `${total} referencia${plural} disponible${plural}.`
           : `${total} referencia${plural} en ${filtroActual.label}.`);
