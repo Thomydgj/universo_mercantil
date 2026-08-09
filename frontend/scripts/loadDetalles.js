@@ -1,6 +1,7 @@
 ﻿document.addEventListener("DOMContentLoaded", async () => {
 const RUTA_MANIFEST_IMAGENES_SIIGO = "scripts/siigo_imagenes.json";
 const RUTA_MANIFEST_DESCRIPCIONES_SIIGO = "scripts/siigo_descripciones.json";
+const SIIGO_SKU_SUFFIX_COMPATIBLE = ["RL"];
 let manifestImagenesSiigo = {};
 let manifestImagenesSiigoNormalizado = {};
 let manifestDescripcionesSiigo = {};
@@ -94,6 +95,24 @@ const requestJson = (url, options = {}) => {
   const body = Object.prototype.hasOwnProperty.call(options, "body") ? options.body : undefined;
 
   return new Promise((resolve, reject) => {
+    const finish = (result, error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(result);
+    };
+
+    const parseResponse = responseText => {
+      let payload = {};
+      try {
+        payload = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        payload = {};
+      }
+      return payload;
+    };
+
     if (typeof window.fetch === "function") {
       const requestInit = {
         method,
@@ -107,64 +126,58 @@ const requestJson = (url, options = {}) => {
       window.fetch(url, requestInit)
         .then(async response => {
           const responseText = await response.text();
-          let payload = {};
-          try {
-            payload = responseText ? JSON.parse(responseText) : {};
-          } catch {
-            payload = {};
-          }
-
-          resolve({
+          const payload = parseResponse(responseText);
+          finish({
             ok: response.ok,
             status: response.status,
             payload,
             responseText
           });
         })
-        .catch(reject);
+        .catch(error => finish(null, error));
       return;
     }
 
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, url, true);
+    if (typeof XMLHttpRequest !== "undefined") {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
 
-    Object.entries(headers).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        xhr.setRequestHeader(key, value);
-      }
-    });
+      Object.entries(headers).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          xhr.setRequestHeader(key, value);
+        }
+      });
 
-    xhr.onreadystatechange = () => {
-      if (xhr.readyState !== 4) return;
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState !== 4) return;
 
-      const responseText = xhr.responseText || "";
-      let payload = {};
-      try {
-        payload = responseText ? JSON.parse(responseText) : {};
-      } catch {
-        payload = {};
-      }
+        const responseText = xhr.responseText || "";
+        const payload = parseResponse(responseText);
 
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve({
-          ok: true,
+        if (xhr.status >= 200 && xhr.status < 300) {
+          finish({
+            ok: true,
+            status: xhr.status,
+            payload,
+            responseText
+          });
+          return;
+        }
+
+        finish(null, {
           status: xhr.status,
           payload,
           responseText
         });
-        return;
-      }
+      };
 
-      reject({
-        status: xhr.status,
-        payload,
-        responseText
-      });
-    };
+      xhr.onerror = () => finish(null, new Error("Network request failed"));
+      xhr.ontimeout = () => finish(null, new Error("Request timeout"));
+      xhr.send(body || null);
+      return;
+    }
 
-    xhr.onerror = () => reject(new Error("Network request failed"));
-    xhr.ontimeout = () => reject(new Error("Request timeout"));
-    xhr.send(body || null);
+    finish(null, new Error("El navegador no soporta peticiones HTTP para este catálogo."));
   });
 };
 
@@ -303,8 +316,21 @@ const guardarCacheCatalogoReal = (query, items) => {
 
 const normalizarTexto = valor => String(valor || "").trim();
 const normalizarClaveImagenSiigo = valor => String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+const obtenerVariantesClaveSiigo = valor => {
+  const claveBase = normalizarClaveImagenSiigo(valor);
+  if (!claveBase) return [];
+
+  const variantes = [claveBase];
+  SIIGO_SKU_SUFFIX_COMPATIBLE.forEach(sufijo => {
+    if (claveBase.endsWith(sufijo) && claveBase.length > sufijo.length) {
+      variantes.push(claveBase.slice(0, -sufijo.length));
+    }
+  });
+
+  return Array.from(new Set(variantes));
+};
 const SKUS_POR_CATEGORIA_SIIGO = {
-  "carnicos": "NTX322RL; A09026RL; A09025RL; A08017RL; C14463RL; A09027RL; B00278RL; A05523RL; A03883RL; A15625RL; A09024RL; A11814RL; C16987RL; C10527RL; Z00006; Z00001; Z00008; Z00005; Z00002; Z00332; D53008; Z00101; Z00116; Z00150; Z00500; Z00501; Z00600; Z00502; Z00503; Z00504; Z00601; Z00602; Z00642; Z00739; Z00707; Z00269; Z00762; Z00294; Z00729; Z00738; Z00750; Z00717; Z00724; Z00736; Z00690; Z00734; Z00334; Z00732; Z00765; Z00735; Z00590; Z00731; Z00770; Z00275; Z00728; Z00755; Z00589; Z00730; Z00737; Z00789; Z00039; Z00336; Z00037; Z00040; Z00038; Z00708; Z00709; Z00710; Z00711; Z00712",
+  "carnicos": "NTX322RL; A09026RL; A09025RL; A08017RL; C14463RL; A09027RL; B00278RL; A05523RL; A03883RL; A15625RL; A09024RL; A11814RL; C16987RL; C10527RL; Z00006; Z00001; Z00008; Z00005; Z00002; Z00332; MUZ00112; MUZ00128; MUZ00115; D53008; Z00101; Z00116; Z00645; Z00150; Z00500; Z00501; Z00600; Z00502; Z00503; Z00504; Z00601; Z00602; Z00642; Z00739; Z00707; Z00269; Z00762; Z00294; Z00729; Z00738; Z00750; Z00717; Z00688; Z00724; Z00736; Z00690; Z00734; Z00334; Z00732; Z00765; Z00735; Z00590; Z00731; Z00770; Z00275; Z00728; Z00755; Z00589; Z00691; Z00727; Z00730; Z00737; Z00789; Z00039; Z00336; Z00037; Z00040; Z00038; Z00041; Z00708; Z00709; Z00710; Z00711; Z00712",
   "bolsas flexibles": "NTO083; A14047; NTJ637; A11870; NTC251; NTD761; NTH509; NTK176; A04664; C16031; NTD005; NTC382; NTC187; NTC445; NTC147; NTJ399; NTC311; C24995; NTC386; NTC171; NTA942; NTC390; NTO497; NTC791; A07537; NTX780; NTC149; NTC381; C02199; NTC406; NTH447; NTK823; NTA530; NTK693; NTC359; C27580; C39140; D13865; D21087; C15443; A05272; NTC752; NT/443; C69675; D45576; NTM183; A05043; A05043CV; D00914; D00907; D00914CV; D00907CV; D00914CVP; D00907CVP; D00919; D00918; D00919CV; D00918CV; D00919CVP; D00918CVP; D59859; C68593; C68592; D59876; C68593CV; C68592CV; C68593CVP; C68592CVP; C49808; C37508; C31224; A10235; A01746; A10235CV; A01746CV; A10235CVP; A01746CVP; C27939; C27937; C27939CV; C27937CV; C27939CVP; C27937CVP; D61917; D61922; D61914; D28476; D29129; D29128; D29131; D29130; MUZ00218; MUZ00219; MUZ00220; NTJ370; NTH964; NTH963; NTH962; NTH364; NTJ492; NTJ050; NTJ051; NTJ496; NTO711; NTH965; NTH961; NTJ433; NTJ498; NTJ499; NTJ500; C69455; D35440; D35442; A12930; A03143; A03144; A07175; A03143CV; A03144CV; A07175CV; D48999; D48998; D48993; D48985; D48985CV; C63356; A05079; A05079CV; A06503; A06503CV; A07925; C26309; C26307; C26301; C28594; C26299; C27948; C27948CV; C27955; C27955CV; C28731; C28731CV; C68701; C68702; C68704; C74441; C74451; C82035; C54853; D21547; D21539; D35618; D27480; D27481; C60451; C60447; Z00798; Z00799",
   "termoformado": "T00072; T00082; T00135; T00137; T00165; T00197; T00291; T00310; T00311; T00325; T00327; T00366; T00377; T00378; T00599; T00658; T00676; T00689; T00697; T00709; T01043; T01044; T01049; T01050; T01079; T01119; T01130; T01190; T01194; T01233; T01234; T01235; T01236; T01251; T01361; T01392; T01427; T01429; T01467; T01479; T01528; T01642; T01721; T01771; T01774; T04725; T04874; T04875; T05701; T05702"
 };
@@ -327,11 +353,17 @@ const construirIndiceCategoriaSiigoPorSku = () => {
 };
 const INDICE_CATEGORIA_SIIGO_POR_SKU = construirIndiceCategoriaSiigoPorSku();
 const resolverCategoriaSiigoPorReglaSku = itemSiigo => {
-  const skuNormalizado = normalizarClaveImagenSiigo(
+  const variantesSku = obtenerVariantesClaveSiigo(
     normalizarTexto(itemSiigo?.sku) || normalizarTexto(itemSiigo?.id)
   );
-  if (!skuNormalizado) return "";
-  return INDICE_CATEGORIA_SIIGO_POR_SKU[skuNormalizado] || "";
+
+  for (const skuNormalizado of variantesSku) {
+    if (INDICE_CATEGORIA_SIIGO_POR_SKU[skuNormalizado]) {
+      return INDICE_CATEGORIA_SIIGO_POR_SKU[skuNormalizado];
+    }
+  }
+
+  return "";
 };
 const TERMOFORMADOS_MULTIPLO_80 = new Set([
   "T01721",
@@ -782,9 +814,19 @@ const itemPerteneceFiltroSiigo = (itemSiigo, filtroCatalogo) => {
   return categoriasItem.some(categoria => filtroCatalogo.categoriasSiigo.includes(categoria));
 };
 
-const filtrarItemsCatalogoPorFiltro = (itemsSiigo, filtroId) => {
-  const filtro = obtenerFiltroCatalogoPorId(filtroId);
-  return (Array.isArray(itemsSiigo) ? itemsSiigo : []).filter(item => itemPerteneceFiltroSiigo(item, filtro));
+const filtrarItemsCatalogoPorFiltro = (itemsSiigo, filtrosIds) => {
+  const filtrosSeleccionados = Array.isArray(filtrosIds) ? filtrosIds : [filtrosIds];
+  if (!filtrosSeleccionados.length || filtrosSeleccionados.includes("todos")) {
+    return Array.isArray(itemsSiigo) ? [...itemsSiigo] : [];
+  }
+
+  const filtrosCatalogo = filtrosSeleccionados
+    .map(filtroId => obtenerFiltroCatalogoPorId(filtroId))
+    .filter(Boolean);
+
+  return (Array.isArray(itemsSiigo) ? itemsSiigo : []).filter(itemSiigo => {
+    return filtrosCatalogo.some(filtroCatalogo => itemPerteneceFiltroSiigo(itemSiigo, filtroCatalogo));
+  });
 };
 
 const asegurarBuscadorCatalogoReal = () => {
@@ -959,7 +1001,7 @@ const limpiarFiltrosCatalogoReal = () => {
   catalogoRealFiltros.innerHTML = "";
 };
 
-const resolverFiltroInicialCatalogo = productoBase => {
+const resolverFiltrosInicialesCatalogo = productoBase => {
   const categoriaIds = Array.isArray(productoBase?.categorias) ? productoBase.categorias : [];
   const tipos = new Set();
 
@@ -969,33 +1011,55 @@ const resolverFiltroInicialCatalogo = productoBase => {
     tiposCategoria.forEach(tipo => tipos.add(normalizarCategoriaSiigoTexto(tipo)));
   });
 
-  if (tipos.has("carnicos")) return "carnicos";
-  if (tipos.has("termoformados") || tipos.has("termoformado")) return "termoformados";
-  if (tipos.has("flexibles") || tipos.has("flexible")) return "flexibles";
-  return "todos";
+  const filtros = [];
+  if (tipos.has("carnicos")) filtros.push("carnicos");
+  if (tipos.has("termoformados") || tipos.has("termoformado")) filtros.push("termoformados");
+  if (tipos.has("flexibles") || tipos.has("flexible")) filtros.push("flexibles");
+
+  return filtros.length ? filtros : ["todos"];
 };
 
-const renderizarFiltrosCatalogoReal = (filtroActivo, onSelect) => {
+const renderizarFiltrosCatalogoReal = (filtrosActivos, onSelect) => {
   if (!catalogoRealFiltros) return;
 
+  const filtrosSeleccionados = Array.isArray(filtrosActivos) ? filtrosActivos : [filtrosActivos];
   catalogoRealFiltros.hidden = false;
   catalogoRealFiltros.innerHTML = "";
 
   FILTROS_CATALOGO_SIIGO.forEach(filtro => {
     const boton = document.createElement("button");
     boton.type = "button";
-    boton.className = `catalogo-real-filtro-btn${filtro.id === filtroActivo ? " is-active" : ""}`;
+    const estaActivo = filtro.id === "todos"
+      ? filtrosSeleccionados.length === 0
+      : filtrosSeleccionados.includes(filtro.id);
+    boton.className = `catalogo-real-filtro-btn${estaActivo ? " is-active" : ""}`;
     boton.textContent = filtro.label;
-    boton.setAttribute("aria-pressed", filtro.id === filtroActivo ? "true" : "false");
+    boton.setAttribute("aria-pressed", estaActivo ? "true" : "false");
     boton.addEventListener("click", () => onSelect(filtro.id));
     catalogoRealFiltros.appendChild(boton);
   });
 };
 
+const normalizarRutaImagenCatalogo = rutaOriginal => {
+  const ruta = normalizarTexto(rutaOriginal);
+  if (!ruta) return "";
+
+  // Mantiene URLs absolutas (CDN/externas) tal cual.
+  if (/^https?:\/\//i.test(ruta) || /^data:/i.test(ruta)) {
+    return ruta;
+  }
+
+  // Estandariza rutas locales para que sean resolubles desde <base href="/">.
+  return ruta
+    .replace(/^\.\//, "")
+    .replace(/^\//, "")
+    .replace(/^frontend\//i, "");
+};
+
 const normalizarListaImagenes = valor => {
   const rutas = [];
   const agregarRuta = entrada => {
-    const ruta = normalizarTexto(entrada);
+    const ruta = normalizarRutaImagenCatalogo(entrada);
     if (!ruta) return;
     rutas.push(ruta);
   };
@@ -1161,11 +1225,14 @@ function resolverImagenesSiigo(itemSiigo) {
       return directas;
     }
 
-    const normalizadas = normalizarListaImagenes(
-      manifestImagenesSiigoNormalizado[normalizarClaveImagenSiigo(clave)]
-    );
-    if (normalizadas.length) {
-      return normalizadas;
+    const variantesClave = obtenerVariantesClaveSiigo(clave);
+    for (const claveNormalizada of variantesClave) {
+      const normalizadas = normalizarListaImagenes(
+        manifestImagenesSiigoNormalizado[claveNormalizada]
+      );
+      if (normalizadas.length) {
+        return normalizadas;
+      }
     }
   }
 
@@ -1195,12 +1262,23 @@ function resolverDescripcionSiigo(itemSiigo) {
   ].filter(Boolean);
 
   for (const clave of candidatos) {
-    const descripcion = extraerDescripcionDesdeValor(
+    let descripcion = extraerDescripcionDesdeValor(
       manifestDescripcionesSiigo[clave]
       || manifestDescripcionesSiigo[clave.toLowerCase()]
-      || manifestDescripcionesSiigoNormalizado[normalizarClaveImagenSiigo(clave)]
       || ""
     );
+
+    if (!descripcion) {
+      const variantesClave = obtenerVariantesClaveSiigo(clave);
+      for (const claveNormalizada of variantesClave) {
+        descripcion = extraerDescripcionDesdeValor(
+          manifestDescripcionesSiigoNormalizado[claveNormalizada] || ""
+        );
+        if (descripcion) {
+          break;
+        }
+      }
+    }
 
     if (descripcion) {
       return descripcion;
@@ -1758,7 +1836,8 @@ async function consultarCatalogoRealSiigo(query) {
   const params = new URLSearchParams({
     page: "1",
     page_size: "80",
-    fetch_all: "true"
+    fetch_all: "true",
+    hide_without_image: "true"
   });
   const q = normalizarTexto(query);
   if (q) {
@@ -1808,6 +1887,10 @@ async function cargarCatalogoRealSiigo(productoBase) {
     return;
   }
 
+  if (!window || typeof window.document === "undefined") {
+    return;
+  }
+
   const buscador = asegurarBuscadorCatalogoReal();
   if (buscador) {
     buscador.wrapper.hidden = true;
@@ -1820,6 +1903,7 @@ async function cargarCatalogoRealSiigo(productoBase) {
 
   if (!backendBaseUrl) {
     actualizarEstadoCatalogoReal("No se encontró configuración de backend para consultar el catálogo.", "warning");
+    catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>El catálogo no pudo cargarse porque falta la configuración del backend.</p>";
     limpiarPaginacionCatalogoReal();
     limpiarFiltrosCatalogoReal();
     return;
@@ -1852,17 +1936,20 @@ async function cargarCatalogoRealSiigo(productoBase) {
       actualizarBotonLimpiarBusqueda(buscador);
     }
 
-    let filtroActivo = resolverFiltroInicialCatalogo(productoBase);
+    let filtrosActivos = resolverFiltrosInicialesCatalogo(productoBase);
     let busquedaActiva = "";
 
     const aplicarVistaCatalogo = () => {
-      renderizarFiltrosCatalogoReal(filtroActivo, aplicarFiltro);
+      renderizarFiltrosCatalogoReal(filtrosActivos, aplicarFiltro);
 
-      const filtroActual = obtenerFiltroCatalogoPorId(filtroActivo);
-      const itemsFiltradosPorFiltro = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtroActivo);
+      const filtrosParaMensaje = filtrosActivos.length ? filtrosActivos : ["todos"];
+      const filtroActual = filtrosParaMensaje.length === 1 && filtrosParaMensaje[0] !== "todos"
+        ? obtenerFiltroCatalogoPorId(filtrosParaMensaje[0])
+        : { id: "todos", label: "todos los filtros" };
+      const itemsFiltradosPorFiltro = filtrarItemsCatalogoPorFiltro(itemsSiigo, filtrosActivos);
       const itemsBaseBusqueda = busquedaActiva ? itemsSiigo : itemsFiltradosPorFiltro;
       const itemsFiltrados = filtrarItemsCatalogoPorBusqueda(itemsBaseBusqueda, busquedaActiva);
-      const filtroOrdenamiento = busquedaActiva ? "todos" : filtroActivo;
+      const filtroOrdenamiento = busquedaActiva ? "todos" : (filtrosActivos.length === 1 ? filtrosActivos[0] : "todos");
       const itemsOrdenados = ordenarItemsCatalogoPorFiltro(itemsFiltrados, filtroOrdenamiento);
 
       if (!itemsOrdenados.length) {
@@ -1891,7 +1978,13 @@ async function cargarCatalogoRealSiigo(productoBase) {
     };
 
     const aplicarFiltro = filtroId => {
-      filtroActivo = obtenerFiltroCatalogoPorId(filtroId).id;
+      if (filtroId === "todos") {
+        filtrosActivos = [];
+      } else if (filtrosActivos.includes(filtroId)) {
+        filtrosActivos = filtrosActivos.filter(id => id !== filtroId);
+      } else {
+        filtrosActivos = filtrosActivos.filter(id => id !== "todos").concat(filtroId);
+      }
       aplicarVistaCatalogo();
     };
 
@@ -1911,11 +2004,11 @@ async function cargarCatalogoRealSiigo(productoBase) {
       };
     }
 
-    aplicarFiltro(filtroActivo);
+    aplicarVistaCatalogo();
   } catch (error) {
     console.error("Error cargando catálogo comercial:", error);
     actualizarEstadoCatalogoReal("No se pudo cargar el catálogo comercial en este momento.", "error");
-    catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>Ocurrió un problema consultando el catálogo. Verifica credenciales, permisos y conectividad del backend.</p>";
+    catalogoRealContainer.innerHTML = "<p class='catalogo-real-empty'>No se pudo cargar el catálogo comercial. Intenta nuevamente en unos minutos o visita la web desde un navegador actualizado.</p>";
     limpiarPaginacionCatalogoReal();
     limpiarFiltrosCatalogoReal();
 

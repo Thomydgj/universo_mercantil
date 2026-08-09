@@ -1,6 +1,6 @@
-﻿document.addEventListener("DOMContentLoaded", async () => {
+﻿document.addEventListener("DOMContentLoaded", () => {
   if (typeof cargarManifestImagenesNuevas === "function") {
-    await cargarManifestImagenesNuevas();
+    cargarManifestImagenesNuevas().catch(() => {});
   }
 
   const container = document.getElementById("container-productos");

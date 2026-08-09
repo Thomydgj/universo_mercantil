@@ -222,6 +222,14 @@ SIIGO_HIDE_ITEMS_WITHOUT_IMAGE_DEFAULT = (
 ).strip().lower() in {
     "1", "true", "yes", "y", "on"
 }
+SIIGO_SKU_COMPAT_SUFFIXES = tuple(
+    suffix
+    for suffix in (
+        re.sub(r"[^A-Z0-9]", "", part.strip().upper())
+        for part in (os.getenv("SIIGO_SKU_COMPAT_SUFFIXES", "RL") or "RL").split(",")
+    )
+    if suffix
+)
 SIIGO_SYNC_INVENTORY_ON_APPROVED = (
     os.getenv("SIIGO_SYNC_INVENTORY_ON_APPROVED", "true") or "true"
 ).strip().lower() in {"1", "true", "yes", "y", "on"}
@@ -839,6 +847,19 @@ def siigo_compact_sku_key(value: object) -> str:
     return re.sub(r"[^A-Z0-9]", "", siigo_normalize_sku_key(value))
 
 
+def siigo_sku_variants(value: object) -> set[str]:
+    sku = siigo_normalize_sku_key(value)
+    if not sku:
+        return set()
+
+    variants = {sku}
+    for suffix in SIIGO_SKU_COMPAT_SUFFIXES:
+        if sku.endswith(suffix) and len(sku) > len(suffix):
+            variants.add(sku[: -len(suffix)])
+
+    return variants
+
+
 def siigo_manifest_value_has_image(value) -> bool:
     if isinstance(value, str):
         return bool(value.strip())
@@ -875,14 +896,15 @@ def siigo_build_image_index(payload) -> dict[str, object]:
         return image_index
 
     for sku_raw, value in payload.items():
-        sku = siigo_normalize_sku_key(sku_raw)
-        if not sku or not siigo_manifest_value_has_image(value):
+        sku_variants = siigo_sku_variants(sku_raw)
+        if not sku_variants or not siigo_manifest_value_has_image(value):
             continue
 
-        by_sku.add(sku)
-        compact = siigo_compact_sku_key(sku)
-        if compact:
-            by_compact_sku.add(compact)
+        for sku in sku_variants:
+            by_sku.add(sku)
+            compact = siigo_compact_sku_key(sku)
+            if compact:
+                by_compact_sku.add(compact)
 
     image_index["has_entries"] = bool(by_sku)
     image_index["by_sku"] = by_sku
@@ -936,17 +958,26 @@ def siigo_item_has_image(item: dict, image_index: dict[str, object] | None = Non
     if not isinstance(image_index, dict):
         return False
 
-    sku = siigo_normalize_sku_key(item.get("sku") or item.get("id"))
-    if not sku:
+    sku_variants = siigo_sku_variants(item.get("sku") or item.get("id"))
+    if not sku_variants:
         return False
 
     by_sku = image_index.get("by_sku")
-    if isinstance(by_sku, set) and sku in by_sku:
-        return True
+    if isinstance(by_sku, set):
+        for sku in sku_variants:
+            if sku in by_sku:
+                return True
 
     by_compact_sku = image_index.get("by_compact_sku")
-    compact = siigo_compact_sku_key(sku)
-    return bool(compact and isinstance(by_compact_sku, set) and compact in by_compact_sku)
+    if not isinstance(by_compact_sku, set):
+        return False
+
+    for sku in sku_variants:
+        compact = siigo_compact_sku_key(sku)
+        if compact and compact in by_compact_sku:
+            return True
+
+    return False
 
 
 def siigo_normalize_product(product: dict) -> dict | None:

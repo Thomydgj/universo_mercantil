@@ -34,7 +34,7 @@
       actionEl.textContent = actionLabel;
 
       if (actionHref) {
-        actionEl.href = actionHref;
+        actionEl.setAttribute("href", actionHref);
       } else {
         actionEl.type = "button";
       }

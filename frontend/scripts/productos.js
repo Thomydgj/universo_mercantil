@@ -426,6 +426,94 @@ function normalizarCategoria(valor) {
     return String(valor || "").trim().toLowerCase();
 }
 
+const CATEGORIA_A_CARPETA_IMAGEN = {
+    "carnicos": "Carnicos",
+    "cafe-chocolate": "Cafe y Chocolate",
+    "alimentos-preparados": "Alimentos Preparados",
+    "panaderia": "Panadería y Reportería",
+    "snacks": "Snacks y Cereales",
+    "mascotas": "Mascotas"
+};
+
+const ALIAS_CARPETAS_LEGACY_IMAGEN = {
+    "Tripa_Natural_Cerdo": ["Tripa Natural Cerdo"],
+    "Flow_Pack_Selle_Ventral": ["Flow-Pack Selle Ventral", "Bolsa Selle Ventral"],
+    "Bolsa_Flex_Up_Con_Zipper": ["Bolsa Flex-Up con Zipper"],
+    "Funda_Plastica_Multiflex": ["Funda Plástica Multiflex", "Multiflex"],
+    "Flex_Up_con_Forma": ["Flex.Up con Forma", "Flex-Up con Forma"],
+    "Termoformados": ["Termoformados"],
+    "Bolsa_Plana": ["Bolsa Plana"],
+    "Bolsa_Selle_Ventral": ["Bolsa Selle Ventral", "Flow-Pack Selle Ventral"],
+    "Flex_Up": ["Flex-Up"],
+    "Flow_Pack_4_Selles": ["Flow-Pack 4 Selles"],
+    "Flex_Up_con_Ventana": ["Flex-Up con Ventana"],
+    "Amipak": ["Amipak"],
+    "Colageno": ["Colageno"]
+};
+
+function obtenerCategoriaPreferidaParaRuta(producto, categoria) {
+    const categorias = [];
+    const categoriaNormalizada = normalizarCategoria(categoria);
+
+    if (categoriaNormalizada) {
+        categorias.push(categoriaNormalizada);
+    }
+
+    if (producto && Array.isArray(producto.categorias)) {
+        producto.categorias.forEach(cat => {
+            const normalizada = normalizarCategoria(cat);
+            if (normalizada && !categorias.includes(normalizada)) {
+                categorias.push(normalizada);
+            }
+        });
+    }
+
+    return categorias.find(cat => CATEGORIA_A_CARPETA_IMAGEN[cat]) || "";
+}
+
+function normalizarRutaLegacyProducto(src, producto, categoria) {
+    const ruta = typeof src === "string" ? src.trim() : "";
+    const prefijo = "assets/images/producto/";
+
+    if (!ruta.startsWith(prefijo)) {
+        return ruta;
+    }
+
+    const resto = ruta.slice(prefijo.length);
+    const partes = resto.split("/");
+    if (partes.length < 2) {
+        return ruta;
+    }
+
+    const primeraCarpeta = partes[0];
+    const categoriaYaIncluida = Object.values(CATEGORIA_A_CARPETA_IMAGEN).includes(primeraCarpeta);
+    if (categoriaYaIncluida || primeraCarpeta.includes("<") || primeraCarpeta.includes(">")) {
+        return ruta;
+    }
+
+    const categoriaPreferida = obtenerCategoriaPreferidaParaRuta(producto, categoria);
+    const carpetaCategoria = CATEGORIA_A_CARPETA_IMAGEN[categoriaPreferida];
+    if (!carpetaCategoria) {
+        return ruta;
+    }
+
+    const aliasCarpeta = ALIAS_CARPETAS_LEGACY_IMAGEN[primeraCarpeta] || [primeraCarpeta.replace(/_/g, " ")];
+    const subRuta = partes.slice(1).join("/");
+
+    // Prioriza la convención nueva por categoría para evitar rutas legacy rotas.
+    return `${prefijo}${carpetaCategoria}/${aliasCarpeta[0]}/${subRuta}`;
+}
+
+function normalizarListaRutasProducto(imagenes, producto, categoria) {
+    if (!Array.isArray(imagenes)) {
+        return [];
+    }
+
+    return imagenes
+        .map(src => normalizarRutaLegacyProducto(src, producto, categoria))
+        .filter(Boolean);
+}
+
 function obtenerImagenesProductoPorCategoria(producto, categoria) {
     const categoriaNormalizada = normalizarCategoria(categoria);
 
@@ -433,10 +521,12 @@ function obtenerImagenesProductoPorCategoria(producto, categoria) {
         return obtenerTodasImagenesProducto(producto);
     }
 
-    if (producto?.id && categoriaNormalizada) {
-        const imagenesNuevas = obtenerImagenesNuevasDesdeManifest(producto.id, categoriaNormalizada);
+    const productoId = producto && typeof producto === "object" ? producto.id : "";
+
+    if (productoId && categoriaNormalizada) {
+        const imagenesNuevas = obtenerImagenesNuevasDesdeManifest(productoId, categoriaNormalizada);
         if (Array.isArray(imagenesNuevas) && imagenesNuevas.length) {
-            return imagenesNuevas;
+            return normalizarListaRutasProducto(imagenesNuevas, producto, categoriaNormalizada);
         }
     }
 
@@ -447,7 +537,7 @@ function obtenerImagenesProductoPorCategoria(producto, categoria) {
     if (categoriaNormalizada && mapaPorCategoria && typeof mapaPorCategoria === "object") {
         const imagenesCategoria = mapaPorCategoria[categoriaNormalizada];
         if (Array.isArray(imagenesCategoria) && imagenesCategoria.length) {
-            return imagenesCategoria;
+            return normalizarListaRutasProducto(imagenesCategoria, producto, categoriaNormalizada);
         }
     }
 
@@ -473,10 +563,11 @@ function deduplicarImagenes(imagenes) {
 
 function obtenerTodasImagenesProducto(producto) {
     const coleccion = [];
-    const categoriasProducto = Array.isArray(producto?.categorias) ? producto.categorias : [];
+    const categoriasProducto = producto && Array.isArray(producto.categorias) ? producto.categorias : [];
+    const imagenesBase = producto && Array.isArray(producto.imagenes) ? producto.imagenes : [];
 
     const mapaManifest = manifestImagenesNuevas && typeof manifestImagenesNuevas === "object"
-        ? manifestImagenesNuevas[producto?.id]
+        ? manifestImagenesNuevas[producto && typeof producto === "object" ? producto.id : ""]
         : null;
 
     if (mapaManifest && typeof mapaManifest === "object") {
@@ -489,7 +580,7 @@ function obtenerTodasImagenesProducto(producto) {
         ordenCategorias.forEach(categoria => {
             const imagenes = mapaManifest[categoria];
             if (Array.isArray(imagenes) && imagenes.length) {
-                coleccion.push(...imagenes);
+                coleccion.push(...normalizarListaRutasProducto(imagenes, producto, categoria));
             }
         });
     }
@@ -508,9 +599,13 @@ function obtenerTodasImagenesProducto(producto) {
         ordenCategorias.forEach(categoria => {
             const imagenes = mapaPorCategoria[categoria];
             if (Array.isArray(imagenes) && imagenes.length) {
-                coleccion.push(...imagenes);
+                coleccion.push(...normalizarListaRutasProducto(imagenes, producto, categoria));
             }
         });
+    }
+
+    if (imagenesBase.length) {
+        coleccion.push(...normalizarListaRutasProducto(imagenesBase, producto, categoriasProducto[0]));
     }
 
     return deduplicarImagenes(coleccion);
