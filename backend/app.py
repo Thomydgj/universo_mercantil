@@ -17,7 +17,7 @@ from urllib.parse import quote, urlparse
 import requests
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
@@ -2569,15 +2569,13 @@ def healthcheck():
 
 
 @app.route("/catalog/siigo", methods=["GET", "OPTIONS"])
+@cross_origin(origins="*", methods=["GET", "OPTIONS"], allow_headers=["Content-Type", "X-Api-Key"])
 def catalogo_siigo():
     if request.method == "OPTIONS":
         return ("", 200)
 
     if request_rate_limited("catalog-siigo"):
         return make_error("Demasiadas solicitudes. Intenta nuevamente en unos segundos.", 429)
-
-    if not is_allowed_origin():
-        return make_error("Origen no permitido", 403)
 
     if not verify_api_key():
         return make_error("Acceso no autorizado", 401)

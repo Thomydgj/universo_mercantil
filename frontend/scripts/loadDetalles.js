@@ -7,6 +7,19 @@ let manifestImagenesSiigoNormalizado = {};
 let manifestDescripcionesSiigo = {};
 let manifestDescripcionesSiigoNormalizado = {};
 
+if (!Object.entries) {
+  Object.entries = function entries(obj) {
+    if (obj == null) return [];
+    const ownKeys = Object.keys(Object(obj));
+    const result = [];
+    for (let i = 0; i < ownKeys.length; i += 1) {
+      const key = ownKeys[i];
+      result.push([key, obj[key]]);
+    }
+    return result;
+  };
+}
+
 if (typeof cargarManifestImagenesNuevas === "function") {
   await cargarManifestImagenesNuevas();
 }
@@ -181,10 +194,64 @@ const requestJson = (url, options = {}) => {
   });
 };
 
+const leerParametroQuery = nombre => {
+  const search = String(window.location.search || "").replace(/^\?/, "");
+  if (!search) return null;
+
+  if (typeof window.URLSearchParams === "function") {
+    try {
+      const nativeParams = new window.URLSearchParams(window.location.search || "");
+      return nativeParams.get(nombre);
+    } catch {
+      // Fallback manual parser below.
+    }
+  }
+
+  const pairs = search.split("&");
+  for (let i = 0; i < pairs.length; i += 1) {
+    const pair = pairs[i];
+    if (!pair) continue;
+
+    const parts = pair.split("=");
+    const key = decodeURIComponent((parts[0] || "").replace(/\+/g, " "));
+    if (key !== nombre) continue;
+
+    const valueRaw = parts.length > 1 ? parts.slice(1).join("=") : "";
+    return decodeURIComponent(String(valueRaw).replace(/\+/g, " "));
+  }
+
+  return null;
+};
+
+const construirQueryString = paramsObj => {
+  const source = paramsObj && typeof paramsObj === "object" ? paramsObj : {};
+
+  if (typeof window.URLSearchParams === "function") {
+    try {
+      const nativeParams = new window.URLSearchParams();
+      Object.keys(source).forEach(key => {
+        const value = source[key];
+        if (value === undefined || value === null) return;
+        nativeParams.set(key, String(value));
+      });
+      return nativeParams.toString();
+    } catch {
+      // Fallback manual builder below.
+    }
+  }
+
+  const pairs = [];
+  Object.keys(source).forEach(key => {
+    const value = source[key];
+    if (value === undefined || value === null) return;
+    pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+  });
+  return pairs.join("&");
+};
+
 // Obtiene el parámetro "id" de la URL (ejemplo: producto.html?id=amipak1)
-const params = new URLSearchParams(window.location.search);
-const idSeleccionado = params.get("id");
-const categoriaContexto = params.get("categoria");
+const idSeleccionado = leerParametroQuery("id");
+const categoriaContexto = leerParametroQuery("categoria");
 
 // Busca el producto en el array productos (definido en productos.js)
 const producto = productos.find(p => p.id === idSeleccionado);
@@ -277,8 +344,8 @@ const leerCacheCatalogoReal = query => {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    const syncedAt = Number(parsed?.syncedAt || 0);
-    const items = parsed?.items;
+    const syncedAt = Number((parsed && parsed.syncedAt) || 0);
+    const items = parsed && parsed.items;
     if (!Number.isFinite(syncedAt) || !Array.isArray(items)) {
       window.localStorage.removeItem(CATALOGO_REAL_CACHE_STORAGE_KEY);
       return null;
@@ -354,7 +421,7 @@ const construirIndiceCategoriaSiigoPorSku = () => {
 const INDICE_CATEGORIA_SIIGO_POR_SKU = construirIndiceCategoriaSiigoPorSku();
 const resolverCategoriaSiigoPorReglaSku = itemSiigo => {
   const variantesSku = obtenerVariantesClaveSiigo(
-    normalizarTexto(itemSiigo?.sku) || normalizarTexto(itemSiigo?.id)
+    normalizarTexto(itemSiigo && itemSiigo.sku) || normalizarTexto(itemSiigo && itemSiigo.id)
   );
 
   for (const skuNormalizado of variantesSku) {
@@ -386,7 +453,7 @@ const MULTIPLO_ESPECIAL_POR_SKU = {
   [normalizarClaveImagenSiigo("NTN890")]: 200,
 };
 const obtenerSkuNormalizadoSiigo = itemSiigo => normalizarClaveImagenSiigo(
-  normalizarTexto(itemSiigo?.sku) || normalizarTexto(itemSiigo?.id)
+  normalizarTexto(itemSiigo && itemSiigo.sku) || normalizarTexto(itemSiigo && itemSiigo.id)
 );
 const normalizarTextoReglaMultiplo = valor => String(valor || "")
   .toLowerCase()
@@ -424,7 +491,7 @@ const resolverMultiploCantidadSiigo = itemSiigo => {
     return 50;
   }
 
-  const nombreNormalizado = normalizarTextoReglaMultiplo(itemSiigo?.nombre);
+  const nombreNormalizado = normalizarTextoReglaMultiplo(itemSiigo && itemSiigo.nombre);
   const categoriasItem = obtenerCategoriasItemSiigo(itemSiigo);
   const contieneNombre = termino => nombreNormalizado.includes(termino);
   const contieneCategoria = categoria => categoriasItem.includes(categoria);
@@ -885,10 +952,10 @@ const filtrarItemsCatalogoPorBusqueda = (itemsSiigo, busqueda) => {
   return (Array.isArray(itemsSiigo) ? itemsSiigo : []).filter(item => {
     const categorias = obtenerCategoriasItemSiigo(item).join(" ");
     const haystack = normalizarTextoComparacion([
-      item?.nombre,
-      item?.sku,
-      item?.id,
-      item?.categoria,
+      item && item.nombre,
+      item && item.sku,
+      item && item.id,
+      item && item.categoria,
       categorias,
     ].filter(Boolean).join(" "));
 
@@ -897,7 +964,7 @@ const filtrarItemsCatalogoPorBusqueda = (itemsSiigo, busqueda) => {
 };
 
 const detectarTipoTermoformado = itemSiigo => {
-  const nombre = normalizarTextoComparacion(itemSiigo?.nombre);
+  const nombre = normalizarTextoComparacion(itemSiigo && itemSiigo.nombre);
   if (!nombre) return "otro";
   if (/\btapa\b/.test(nombre)) return "tapa";
   if (/\bbase\b/.test(nombre)) return "base";
@@ -906,9 +973,9 @@ const detectarTipoTermoformado = itemSiigo => {
 
 const extraerCodigoTermoformado = itemSiigo => {
   const candidatos = [
-    String(itemSiigo?.nombre || ""),
-    String(itemSiigo?.sku || ""),
-    String(itemSiigo?.id || "")
+    String((itemSiigo && itemSiigo.nombre) || ""),
+    String((itemSiigo && itemSiigo.sku) || ""),
+    String((itemSiigo && itemSiigo.id) || "")
   ];
 
   for (const candidato of candidatos) {
@@ -1002,12 +1069,12 @@ const limpiarFiltrosCatalogoReal = () => {
 };
 
 const resolverFiltrosInicialesCatalogo = productoBase => {
-  const categoriaIds = Array.isArray(productoBase?.categorias) ? productoBase.categorias : [];
+  const categoriaIds = productoBase && Array.isArray(productoBase.categorias) ? productoBase.categorias : [];
   const tipos = new Set();
 
   categoriaIds.forEach(categoriaId => {
-    const categoriaEncontrada = categoriasCatalogo.find(categoria => categoria?.id === categoriaId);
-    const tiposCategoria = Array.isArray(categoriaEncontrada?.tipo) ? categoriaEncontrada.tipo : [];
+    const categoriaEncontrada = categoriasCatalogo.find(categoria => categoria && categoria.id === categoriaId);
+    const tiposCategoria = categoriaEncontrada && Array.isArray(categoriaEncontrada.tipo) ? categoriaEncontrada.tipo : [];
     tiposCategoria.forEach(tipo => tipos.add(normalizarCategoriaSiigoTexto(tipo)));
   });
 
@@ -1106,8 +1173,8 @@ const construirLinkWhatsappAsesoria = texto => {
 };
 
 const obtenerEstadoComercialItem = itemSiigo => {
-  const stockNumerico = Number(itemSiigo?.cantidad);
-  const precioNumerico = Number(itemSiigo?.precio);
+  const stockNumerico = Number(itemSiigo && itemSiigo.cantidad);
+  const precioNumerico = Number(itemSiigo && itemSiigo.precio);
   const sinStock = Number.isFinite(stockNumerico) && stockNumerico <= 0;
   const sinPrecio = !Number.isFinite(precioNumerico) || precioNumerico < 0;
 
@@ -1204,16 +1271,16 @@ function cargarManifestDescripcionesSiigo() {
 
 function resolverImagenesSiigo(itemSiigo) {
   const imagenesDirectas = combinarRutasImagenes(
-    normalizarListaImagenes(itemSiigo?.imagenes),
-    normalizarListaImagenes(itemSiigo?.imagen)
+    normalizarListaImagenes(itemSiigo && itemSiigo.imagenes),
+    normalizarListaImagenes(itemSiigo && itemSiigo.imagen)
   );
   if (imagenesDirectas.length) {
     return imagenesDirectas;
   }
 
   const candidatos = [
-    normalizarTexto(itemSiigo?.sku),
-    normalizarTexto(itemSiigo?.id)
+    normalizarTexto(itemSiigo && itemSiigo.sku),
+    normalizarTexto(itemSiigo && itemSiigo.id)
   ].filter(Boolean);
 
   for (const clave of candidatos) {
@@ -1246,10 +1313,10 @@ function resolverImagenSiigo(itemSiigo) {
 
 function resolverDescripcionSiigo(itemSiigo) {
   const directa = extraerDescripcionDesdeValor(
-    itemSiigo?.descripcion
-    || itemSiigo?.description
-    || itemSiigo?.detalle
-    || itemSiigo?.body_html
+    (itemSiigo && itemSiigo.descripcion)
+    || (itemSiigo && itemSiigo.description)
+    || (itemSiigo && itemSiigo.detalle)
+    || (itemSiigo && itemSiigo.body_html)
     || ""
   );
   if (directa) {
@@ -1257,8 +1324,8 @@ function resolverDescripcionSiigo(itemSiigo) {
   }
 
   const candidatos = [
-    normalizarTexto(itemSiigo?.sku),
-    normalizarTexto(itemSiigo?.id)
+    normalizarTexto(itemSiigo && itemSiigo.sku),
+    normalizarTexto(itemSiigo && itemSiigo.id)
   ].filter(Boolean);
 
   for (const clave of candidatos) {
@@ -1833,15 +1900,15 @@ async function consultarCatalogoRealSiigo(query) {
     return cache;
   }
 
-  const params = new URLSearchParams({
+  const params = {
     page: "1",
     page_size: "80",
     fetch_all: "true",
     hide_without_image: "true"
-  });
+  };
   const q = normalizarTexto(query);
   if (q) {
-    params.set("q", q);
+    params.q = q;
   }
 
   const esEstadoReintentable = status => [408, 425, 429, 500, 502, 503, 504].includes(status);
@@ -1850,7 +1917,8 @@ async function consultarCatalogoRealSiigo(query) {
 
   for (let intento = 1; intento <= CATALOGO_REAL_MAX_INTENTOS_CONSULTA; intento += 1) {
     try {
-      const response = await requestJson(`${backendBaseUrl}/catalog/siigo?${params.toString()}`, {
+      const queryString = construirQueryString(params);
+      const response = await requestJson(`${backendBaseUrl}/catalog/siigo?${queryString}`, {
         method: "GET",
         headers: construirHeadersBackend()
       });
@@ -1867,7 +1935,7 @@ async function consultarCatalogoRealSiigo(query) {
       return items;
     } catch (error) {
       ultimoError = error;
-      const status = Number(error?.status || 0);
+      const status = Number((error && error.status) || 0);
       const reintentable = !status || esEstadoReintentable(status);
       const ultimoIntento = intento >= CATALOGO_REAL_MAX_INTENTOS_CONSULTA;
 
@@ -2033,11 +2101,11 @@ if (producto) {
     ? categoriasCatalogo.find(item => item && item.id === categoriaPrincipal)
     : null;
 
-  const categoriaNombre = categoriaDefinida?.nombre || (categoriaPrincipal
+  const categoriaNombre = (categoriaDefinida && categoriaDefinida.nombre) || (categoriaPrincipal
     ? (nombresCategorias[categoriaPrincipal] || categoriaPrincipal)
     : "Línea general");
 
-  const tiposCategoria = Array.isArray(categoriaDefinida?.tipo)
+  const tiposCategoria = categoriaDefinida && Array.isArray(categoriaDefinida.tipo)
     ? categoriaDefinida.tipo
     : [];
   const tiposCategoriaTexto = tiposCategoria
