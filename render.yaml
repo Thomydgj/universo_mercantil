@@ -18,6 +18,7 @@ services:
       - key: FRONTEND_BASE_URL
         sync: false
       - key: ALLOWED_ORIGINS
+        value: "https://www.universomercantilsas.com,https://universomercantilsas.com"
         sync: false
 
       # Wompi

@@ -141,7 +141,19 @@ ALLOWED_ORIGINS = _expand_allowed_origins(
 MAX_REQUEST_BODY_BYTES = _env_int("MAX_REQUEST_BODY_BYTES", 262144, 1024)
 
 # Configuración de CORS restringida por entorno
-CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
+CORS(app, resources={
+    r"/*": {
+        "origins": ALLOWED_ORIGINS,
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": [
+            "Content-Type",
+            "X-Api-Key",
+            "X-Idempotency-Key",
+            "X-Requested-With",
+            "Authorization",
+        ],
+    }
+}, supports_credentials=False, automatic_options=True)
 app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
 
 WOMPI_PUBLIC_KEY = os.getenv("WOMPI_PUBLIC_KEY")
@@ -2663,7 +2675,13 @@ def catalogo_siigo():
 @app.route("/checkout", methods=["POST", "OPTIONS"])
 def checkout():
     if request.method == "OPTIONS":
-        # Respuesta al preflight
+        # Respuesta al preflight: registrar información útil para diagnóstico
+        origin = request.headers.get("Origin")
+        acrh = request.headers.get("Access-Control-Request-Headers")
+        acrm = request.headers.get("Access-Control-Request-Method")
+        allowed = is_allowed_origin()
+        logger.info("Preflight /checkout origin=%s allowed=%s acrm=%s acrh=%s", origin, allowed, acrm, acrh)
+        # Devolver 200 para preflight y dejar que flask-cors agregue cabeceras CORS
         return ("", 200)
 
     if request_rate_limited("checkout"):
