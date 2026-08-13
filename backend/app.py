@@ -423,6 +423,30 @@ def is_allowed_origin() -> bool:
     if origin and origin in ALLOWED_ORIGINS:
         return True
 
+    # Allow matching origin variants with/without leading www. (e.g. example.com <-> www.example.com)
+    try:
+        parsed = urlparse(origin) if origin else None
+        if parsed and parsed.hostname:
+            host = parsed.hostname
+            scheme = parsed.scheme or "https"
+            alt_host = ""
+            if host.startswith("www."):
+                alt_host = host[len("www."):]
+            else:
+                alt_host = f"www.{host}"
+
+            alt_origin = f"{scheme}://{alt_host}"
+            # preserve non-standard port if present
+            if parsed.port:
+                alt_origin = f"{scheme}://{alt_host}:{parsed.port}"
+
+            if alt_origin in ALLOWED_ORIGINS:
+                logger.info("Origin variant allowed: %s matches %s", origin, alt_origin)
+                return True
+    except Exception:
+        # fallthrough to referer check
+        pass
+
     referer = (request.headers.get("Referer") or "").strip()
     referer_origin = ""
     if referer:
