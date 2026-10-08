@@ -141,30 +141,25 @@ ALLOWED_ORIGINS = _expand_allowed_origins(
 MAX_REQUEST_BODY_BYTES = _env_int("MAX_REQUEST_BODY_BYTES", 262144, 1024)
 
 # Configuración de CORS restringida por entorno
-CORS(app, resources={
-    r"/*": {
-        "origins": ALLOWED_ORIGINS,
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": [
-            "Content-Type",
-            "X-Api-Key",
-            "X-Idempotency-Key",
-            "X-Requested-With",
-            "Authorization",
-        ],
-    }
-}, supports_credentials=False, automatic_options=True)
+CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
 app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BODY_BYTES
 
 WOMPI_PUBLIC_KEY = os.getenv("WOMPI_PUBLIC_KEY")
 WOMPI_PRIVATE_KEY = os.getenv("WOMPI_PRIVATE_KEY")
 WOMPI_INTEGRITY_SECRET = os.getenv("WOMPI_INTEGRITY_SECRET")
-WOMPI_WEBHOOK_SECRET = os.getenv("WOMPI_WEBHOOK_SECRET") or WOMPI_INTEGRITY_SECRET
+# IMPORTANTE: el secreto de eventos de Wompi es distinto al secreto de integridad.
+WOMPI_WEBHOOK_SECRET = (os.getenv("WOMPI_WEBHOOK_SECRET") or "").strip()
 WOMPI_URL = os.getenv("WOMPI_URL", "https://sandbox.wompi.co/v1")
 BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http://localhost:8000"
 _frontend_base_url_raw = _strip_index_html_suffix(os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500")
 FRONTEND_BASE_URL = _frontend_base_url_raw.rstrip("/") or "http://localhost:5500"
 SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
+# URL del Custom Webhook del escenario "Universo Mercantil | Wompi | Estado de Pago".
+# Se mantiene exclusivamente como variable de entorno para no publicar el token del webhook en GitHub.
+MAKE_PAYMENT_STATUS_WEBHOOK_URL = (os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_URL") or "").strip()
+MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS = float(
+    os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS", "8")
+)
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "").strip()
 BACKEND_API_KEYS = [
     key
@@ -422,30 +417,6 @@ def is_allowed_origin() -> bool:
     origin = _normalize_origin(request.headers.get("Origin") or "")
     if origin and origin in ALLOWED_ORIGINS:
         return True
-
-    # Allow matching origin variants with/without leading www. (e.g. example.com <-> www.example.com)
-    try:
-        parsed = urlparse(origin) if origin else None
-        if parsed and parsed.hostname:
-            host = parsed.hostname
-            scheme = parsed.scheme or "https"
-            alt_host = ""
-            if host.startswith("www."):
-                alt_host = host[len("www."):]
-            else:
-                alt_host = f"www.{host}"
-
-            alt_origin = f"{scheme}://{alt_host}"
-            # preserve non-standard port if present
-            if parsed.port:
-                alt_origin = f"{scheme}://{alt_host}:{parsed.port}"
-
-            if alt_origin in ALLOWED_ORIGINS:
-                logger.info("Origin variant allowed: %s matches %s", origin, alt_origin)
-                return True
-    except Exception:
-        # fallthrough to referer check
-        pass
 
     referer = (request.headers.get("Referer") or "").strip()
     referer_origin = ""
@@ -1577,21 +1548,76 @@ def extract_signature_from_headers() -> str:
     return raw.strip().lower()
 
 
+def _event_data_value(data: dict, path: str):
+    """Obtiene un valor anidado usando rutas como 'transaction.id'."""
+    value = data
+    for part in str(path or "").split("."):
+        if not isinstance(value, dict) or part not in value:
+            return None
+        value = value[part]
+    return value
+
+
+def _event_value_as_string(value) -> str:
+    """Normaliza valores para la concatenación del checksum de Wompi."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
 def verify_webhook_signature(raw_payload: bytes) -> bool:
+    """Valida un evento de Wompi con SHA256(properties + timestamp + event secret)."""
     if not WOMPI_WEBHOOK_SECRET:
         logger.error("WOMPI_WEBHOOK_SECRET no configurado")
         return False
 
-    received_signature = extract_signature_from_headers()
-    if not received_signature:
+    try:
+        evento = json.loads((raw_payload or b"").decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+        logger.warning("Webhook Wompi con JSON inválido")
         return False
 
-    expected_signature = hmac.new(
-        WOMPI_WEBHOOK_SECRET.encode("utf-8"),
-        raw_payload,
-        hashlib.sha256,
+    if not isinstance(evento, dict):
+        return False
+
+    signature = evento.get("signature") or {}
+    properties = signature.get("properties") or []
+    timestamp = evento.get("timestamp")
+    data = evento.get("data") or {}
+
+    received_checksum = str(
+        signature.get("checksum")
+        or request.headers.get("X-Event-Checksum")
+        or ""
+    ).strip().lower()
+
+    if not isinstance(properties, list) or not properties:
+        logger.warning("Webhook Wompi sin signature.properties")
+        return False
+    if timestamp is None or not received_checksum:
+        logger.warning("Webhook Wompi sin timestamp o checksum")
+        return False
+    if not isinstance(data, dict):
+        logger.warning("Webhook Wompi sin data válido")
+        return False
+
+    concatenated = "".join(
+        _event_value_as_string(_event_data_value(data, prop))
+        for prop in properties
+    )
+    concatenated += str(timestamp)
+    concatenated += WOMPI_WEBHOOK_SECRET
+
+    expected_checksum = hashlib.sha256(
+        concatenated.encode("utf-8")
     ).hexdigest().lower()
-    return hmac.compare_digest(expected_signature, received_signature)
+
+    is_valid = hmac.compare_digest(expected_checksum, received_checksum)
+    if not is_valid:
+        logger.warning("Webhook Wompi con checksum inválido")
+    return is_valid
 
 
 def validate_order_payload(data: dict, *, is_direct_payment: bool) -> tuple[dict | None, str | None]:
@@ -1797,6 +1823,107 @@ def consultar_transaccion_wompi(transaction_id: str) -> dict:
     return payload.get("data", {})
 
 
+def notify_make_payment_status(transaction: dict, *, source: str = "backend") -> bool:
+    """Envía a Make el estado confirmado consultando a Wompi.
+
+    La función es idempotente por transaction_id + status. Solo marca el evento
+    como notificado después de que Make responda con HTTP 2xx, de forma que una
+    redirección posterior o un reintento de Wompi pueda recuperar un fallo temporal.
+    """
+    if not MAKE_PAYMENT_STATUS_WEBHOOK_URL:
+        logger.warning("MAKE_PAYMENT_STATUS_WEBHOOK_URL no configurado; no se notificará a Make")
+        return False
+
+    if not isinstance(transaction, dict):
+        return False
+
+    transaction_id = str(transaction.get("id") or "").strip()
+    status = str(transaction.get("status") or "").upper().strip()
+    reference = str(transaction.get("reference") or "").strip()
+    payment_link_id = str(transaction.get("payment_link_id") or "").strip()
+
+    if not transaction_id or not status:
+        logger.warning("No se notificó a Make: transacción sin id o status")
+        return False
+
+    matched_reference = reference
+    order = get_order(reference) if reference else None
+
+    if not order and payment_link_id:
+        matched = find_order_by_payment_link_id(payment_link_id)
+        if matched:
+            matched_reference, order = matched
+
+    order = order or {}
+
+    checkout_url = str(order.get("payment_link_url") or "").strip()
+    if not checkout_url and payment_link_id:
+        checkout_url = f"https://checkout.wompi.co/l/{payment_link_id}"
+
+    # El escenario actual de Make identifica el pedido por checkout_url.
+    if not checkout_url:
+        logger.warning(
+            "No se notificó a Make: no fue posible resolver checkout_url para tx=%s reference=%s",
+            transaction_id,
+            reference,
+        )
+        return False
+
+    event_key = f"{transaction_id}:{status}"
+    if str(order.get("make_last_event_key") or "").strip() == event_key:
+        logger.info("Notificación a Make ya enviada para %s", event_key)
+        return True
+
+    payload = {
+        "event": "transaction.updated",
+        "transaction_id": transaction_id,
+        "status": status,
+        "reference": reference,
+        "payment_link_id": payment_link_id,
+        "checkout_url": checkout_url,
+        "amount_in_cents": transaction.get("amount_in_cents"),
+        "currency": transaction.get("currency") or "COP",
+        "customer_email": transaction.get("customer_email") or "",
+        "payment_method_type": transaction.get("payment_method_type") or "",
+        "status_message": transaction.get("status_message") or "",
+        "sent_at": now_iso(),
+        "source": source,
+    }
+
+    try:
+        response = requests.post(
+            MAKE_PAYMENT_STATUS_WEBHOOK_URL,
+            json=payload,
+            timeout=MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as exc:
+        logger.warning("No se pudo notificar a Make (%s): %s", event_key, exc)
+        return False
+
+    if response.status_code < 200 or response.status_code >= 300:
+        logger.warning(
+            "Make respondió HTTP %s para %s: %s",
+            response.status_code,
+            event_key,
+            (response.text or "")[:500],
+        )
+        return False
+
+    if matched_reference:
+        try:
+            upsert_order(matched_reference, {
+                "make_last_event_key": event_key,
+                "make_last_status": status,
+                "make_notified_at": now_iso(),
+                "make_notification_source": source,
+            })
+        except Exception as exc:  # La notificación ya salió; no romper el pago por persistencia auxiliar.
+            logger.warning("Make notificado, pero no se pudo guardar marca idempotente: %s", exc)
+
+    logger.info("Estado %s de tx=%s notificado a Make", status, transaction_id)
+    return True
+
+
 def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook") -> tuple[dict, int]:
     if not transaction_id:
         return {"status": "ignored", "reason": "transaction_id_not_found"}, 200
@@ -1832,8 +1959,16 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
         "redirect_sync_at": now_iso() if source == "redirect" else order.get("redirect_sync_at"),
     })
 
+    # Punto único de sincronización con Make. Se ejecuta tanto cuando Wompi llama
+    # /webhook como cuando /checkout/resultado reconcilia la transacción.
+    make_notified = notify_make_payment_status(tx, source=source)
+
     if tx_status != "APPROVED":
-        return {"status": "ignored", "reason": f"transaction_status_{tx_status or 'unknown'}"}, 200
+        return {
+            "status": "ignored",
+            "reason": f"transaction_status_{tx_status or 'unknown'}",
+            "make_notified": make_notified,
+        }, 200
 
     inventory_sync = {
         "ok": bool(order.get("inventory_synced")),
@@ -1857,7 +1992,12 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
             logger.warning("No se pudo sincronizar inventario Siigo para %s: %s", matched_reference, inventory_sync)
 
     if order.get("email_notified"):
-        return {"status": "ok", "message": "already_notified", "inventory_sync": inventory_sync}, 200
+        return {
+            "status": "ok",
+            "message": "already_notified",
+            "inventory_sync": inventory_sync,
+            "make_notified": make_notified,
+        }, 200
 
     sent, detail = enviar_correos_compra_aprobada(order, tx)
 
@@ -1870,9 +2010,19 @@ def procesar_transaccion_confirmada(transaction_id: str, source: str = "webhook"
 
     if not sent:
         logger.error("Error correo facturación (%s): %s", matched_reference, detail)
-        return {"status": "error", "message": "email_not_sent", "inventory_sync": inventory_sync}, 500
+        return {
+            "status": "error",
+            "message": "email_not_sent",
+            "inventory_sync": inventory_sync,
+            "make_notified": make_notified,
+        }, 500
 
-    return {"status": "ok", "message": "email_sent", "inventory_sync": inventory_sync}, 200
+    return {
+        "status": "ok",
+        "message": "email_sent",
+        "inventory_sync": inventory_sync,
+        "make_notified": make_notified,
+    }, 200
 
 
 def build_order_email_context(order: dict, transaction: dict) -> dict:
@@ -2600,6 +2750,9 @@ def healthcheck():
         "service": "universo-mercantil-backend",
         "storage_mode": explain_storage_mode(),
         "siigo_configured": siigo_is_configured(),
+        "wompi_environment": "test" if "sandbox" in (WOMPI_URL or "").lower() else "prod",
+        "wompi_webhook_secret_configured": bool(WOMPI_WEBHOOK_SECRET),
+        "make_payment_webhook_configured": bool(MAKE_PAYMENT_STATUS_WEBHOOK_URL),
         "timestamp": now_iso(),
     }), 200
 
@@ -2985,6 +3138,61 @@ def webhook():
     tx_id = tx_from_event.get("id") or (evento.get("data") or {}).get("id")
     result, status_code = procesar_transaccion_confirmada(tx_id, source="webhook")
     return jsonify(result), status_code
+
+
+@app.route("/sitemap.xml", methods=["GET"])
+def sitemap():
+    """Genera sitemap XML dinámico para SEO"""
+    base_domain = "https://www.universomercantilsas.com"
+    
+    sitemap_xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>{base_domain}/</loc>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+    </url>
+    <url>
+        <loc>{base_domain}/productos</loc>
+        <changefreq>daily</changefreq>
+        <priority>0.9</priority>
+    </url>
+    <url>
+        <loc>{base_domain}/categorias</loc>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    <url>
+        <loc>{base_domain}/nosotros</loc>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+    </url>
+    <url>
+        <loc>{base_domain}/carrito</loc>
+        <changefreq>weekly</changefreq>
+        <priority>0.5</priority>
+    </url>
+</urlset>'''
+    
+    return sitemap_xml, 200, {
+        'Content-Type': 'application/xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=86400'
+    }
+
+
+@app.route("/robots.txt", methods=["GET"])
+def robots():
+    """Sirve robots.txt desde el backend"""
+    robots_txt = '''User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /carrito/
+Crawl-delay: 1
+
+Sitemap: https://www.universomercantilsas.com/sitemap.xml
+'''
+    return robots_txt, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
 if __name__ == "__main__":
