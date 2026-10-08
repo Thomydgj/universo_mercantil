@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /carrito/
+Crawl-delay: 1
+
+Sitemap: https://www.universomercantilsas.com/sitemap.xml
