@@ -166,7 +166,8 @@ BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http
 _frontend_base_url_raw = _strip_index_html_suffix(os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500")
 FRONTEND_BASE_URL = _frontend_base_url_raw.rstrip("/") or "http://localhost:5500"
 SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
-    MAKE_PAYMENT_STATUS_WEBHOOK_URL = (
+
+MAKE_PAYMENT_STATUS_WEBHOOK_URL = (
     os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_URL")
     or "https://hook.us2.make.com/si4mahif6emwvdmntnb0at3sleq1db22"
 ).strip()
@@ -3051,17 +3052,18 @@ def webhook():
 
     tx_from_event = (evento.get("data") or {}).get("transaction") or {}
     tx_id = tx_from_event.get("id") or (evento.get("data") or {}).get("id")
+
     result, status_code = procesar_transaccion_confirmada(
-    tx_id,
-    source="webhook"
-)
+        tx_id,
+        source="webhook"
+    )
 
-notify_make_payment_status(
-    evento,
-    tx_from_event
-)
+    notify_make_payment_status(
+        evento,
+        tx_from_event
+    )
 
-return jsonify(result), status_code
+    return jsonify(result), status_code
 
 
 if __name__ == "__main__":
