@@ -1,5 +1,4 @@
 ﻿import hashlib
-import threading
 import hmac
 import html
 import json
@@ -155,22 +154,11 @@ BASE_URL = os.getenv("BACKEND_BASE_URL") or os.getenv("NGROK_BASE_URL") or "http
 _frontend_base_url_raw = _strip_index_html_suffix(os.getenv("FRONTEND_BASE_URL") or "http://localhost:5500")
 FRONTEND_BASE_URL = _frontend_base_url_raw.rstrip("/") or "http://localhost:5500"
 SALES_WHATSAPP_NUMBER = (os.getenv("SALES_WHATSAPP_NUMBER") or "").strip()
-<<<<<<< HEAD
 # URL del Custom Webhook del escenario "Universo Mercantil | Wompi | Estado de Pago".
 # Se mantiene exclusivamente como variable de entorno para no publicar el token del webhook en GitHub.
 MAKE_PAYMENT_STATUS_WEBHOOK_URL = (os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_URL") or "").strip()
 MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS = float(
     os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS", "8")
-=======
-
-MAKE_PAYMENT_STATUS_WEBHOOK_URL = (
-    os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_URL")
-    or "https://hook.us2.make.com/si4mahif6emwvdmntnb0at3sleq1db22"
-).strip()
-
-MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS = float(
-    os.getenv("MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS", "5")
->>>>>>> 6812651c59edd005809ecad615541a4737666e01
 )
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "").strip()
 BACKEND_API_KEYS = [
@@ -3126,66 +3114,7 @@ def resultado():
         "ui": build_checkout_result_ui(reconcile)
     }), 200
 
-def notify_make_payment_status(evento: dict, tx_from_event: dict) -> None:
-    if not MAKE_PAYMENT_STATUS_WEBHOOK_URL:
-        return
 
-    tx_id = tx_from_event.get("id") or (evento.get("data") or {}).get("id")
-    tx_status = str(tx_from_event.get("status") or "").upper().strip()
-
-    if not tx_id or not tx_status:
-        return
-
-    payment_link_id = str(
-        tx_from_event.get("payment_link_id") or ""
-    ).strip()
-
-    checkout_url = (
-        f"https://checkout.wompi.co/l/{payment_link_id}"
-        if payment_link_id
-        else ""
-    )
-
-    payload = {
-        "event": evento.get("event") or "transaction.updated",
-        "transaction_id": tx_id,
-        "status": tx_status,
-        "reference": tx_from_event.get("reference") or "",
-        "payment_link_id": payment_link_id,
-        "checkout_url": checkout_url,
-        "amount_in_cents": tx_from_event.get("amount_in_cents"),
-        "currency": tx_from_event.get("currency") or "COP",
-        "customer_email": tx_from_event.get("customer_email") or "",
-        "payment_method_type": tx_from_event.get("payment_method_type") or "",
-        "status_message": tx_from_event.get("status_message") or "",
-        "sent_at": evento.get("sent_at") or "",
-    }
-
-    def _send():
-        try:
-            response = requests.post(
-                MAKE_PAYMENT_STATUS_WEBHOOK_URL,
-                json=payload,
-                timeout=MAKE_PAYMENT_STATUS_WEBHOOK_TIMEOUT_SECONDS,
-            )
-
-            if response.status_code >= 400:
-                logger.warning(
-                    "Make payment webhook responded with HTTP %s: %s",
-                    response.status_code,
-                    response.text[:500],
-                )
-
-        except Exception as exc:
-            logger.warning(
-                "Could not notify Make payment webhook: %s",
-                exc,
-            )
-
-    threading.Thread(
-        target=_send,
-        daemon=True,
-    ).start()
 @app.route("/webhook", methods=["POST", "OPTIONS"])
 def webhook():
     if request.method == "OPTIONS":
@@ -3207,17 +3136,7 @@ def webhook():
 
     tx_from_event = (evento.get("data") or {}).get("transaction") or {}
     tx_id = tx_from_event.get("id") or (evento.get("data") or {}).get("id")
-
-    result, status_code = procesar_transaccion_confirmada(
-        tx_id,
-        source="webhook"
-    )
-
-    notify_make_payment_status(
-        evento,
-        tx_from_event
-    )
-
+    result, status_code = procesar_transaccion_confirmada(tx_id, source="webhook")
     return jsonify(result), status_code
 
 
